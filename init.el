@@ -22,6 +22,9 @@
 		   (file-name-nondirectory (getenv "SHELL")))
 	  "")) ;SHELL が定義されてない場合
 (if (string= on-shell "") (setq on-shell "cmdproxy.exe")) ;SHELL がない or ファイルじゃない場合は win-native 扱い
+;; ↑ここ修正が必要
+;; unix の場合でも、 shell が cmdproxy になってしまう
+;; on-shell の入れ方から修正した方が良い (getenv した値を入れてから nil や存在しない場合のケアする)
 (defvar on-windows-native
   (and run-windows
 	   (string= on-shell "cmdproxy.exe")))
@@ -35,10 +38,10 @@
 	   (not on-msys)))
 
 ;;;;-------------------------------------------------------------------
-;;;; パッケージ管理  ×どうやら社内環境では通信できないようだ…
-;(package-initialize)
-;(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-;(add-to-list 'package-archives '("melpa-stable" . "https://melpa.org/packages/") t)
+;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
+(package-initialize)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa-stable" . "https://melpa.org/packages/") t)
 
 ;;;-------------------------------------------------------------------
 ;;; load-path の設定
@@ -67,9 +70,10 @@
 ;;;-------------------------------------------------------------------
 ;;; 日本語環境設定
 (set-language-environment "Japanese")
-(if run-unix
-	(prefer-coding-system 'euc-jp-unix)
-  (prefer-coding-system 'utf-8-unix))
+;(if run-unix
+;	(prefer-coding-system 'euc-jp-unix)
+;  (prefer-coding-system 'utf-8-unix))
+(prefer-coding-system 'utf-8-unix)
 
 ;;;-------------------------------------------------------------------
 ;;; font lock を ON (テキストファイルはデフォルトで ON にならないため追加)
@@ -220,10 +224,18 @@
 ;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
 (setq migemo-command "cmigemo")
 (setq migemo-options '("-q" "--emacs" "-i" "\a"))
-;; migemo-dict のパスを指定
-(if run-windows
-	(setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/migemo-dict"))
-  (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/euc-jp.d/migemo-dict")))
+;; migemo-dict のパス/文字コードを指定
+(let ((lang (or (getenv "LANG") (if run-windows "ja_JP.SJIS" "ja_JP.eucJP"))))
+  (cond ((string= lang "ja_JP.SJIS")
+		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/cp932/migemo-dict"))
+		 (setq migemo-coding-system 'japanese-shift-jis-unix))
+		((string= lang "ja_JP.eucJP")
+		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/euc-jp.d/migemo-dict"))
+		 (setq migemo-coding-system 'euc-jp-unix))
+		(t								; ja_JP.UTF-8
+		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict"))
+		 (setq migemo-coding-system 'utf-8-unix))))
+
 (setq migemo-user-dictionary nil)
 (setq migemo-regex-dictionary nil)
 
@@ -231,11 +243,6 @@
 (setq migemo-use-pattern-alist t)
 (setq migemo-use-frequent-pattern-alist t)
 (setq migemo-pattern-alist-length 1024)
-;; 辞書の文字コードを指定
-;(setq migemo-coding-system 'utf-8-unix)
-(if run-windows
-	(setq migemo-coding-system 'japanese-shift-jis-unix)
-  (setq migemo-coding-system 'euc-jp-unix))
 
 (load-library "migemo")
 ;; 起動時に初期化も行う
@@ -532,32 +539,6 @@ type1 はセパレータを消去するもの。")
 (add-hook 'find-file-hooks 'my-imenu-ff-hook t)
 (global-set-key "\C-cg" 'imenu)
 
-;; imenu で mcomplete による補完を有効に
-(defadvice imenu--completion-buffer
-  (around mcomplete activate preactivate)
-  "Support for mcomplete-mode."
-  (require 'mcomplete)
-  (let ((imenu-always-use-completion-buffer-p 'never)
-		(mode mcomplete-mode)
-		;; the order of completion methods
-		(mcomplete-default-method-set '(mcomplete-substr-method
-										mcomplete-prefix-method))
-		;; when to display completion candidates in the minibuffer
-		(mcomplete-default-exhibit-start-chars 0)
-		(completion-ignore-case t))
-	;; display *Completions* buffer on entering the minibuffer
-	(setq unread-command-events
-		  (cons (funcall (if (fboundp 'character-to-event)
-							 'character-to-event
-						   'identity)
-						 ?\?)
-				unread-command-events))
-	(turn-on-mcomplete-mode)
-	(unwind-protect
-		ad-do-it
-	  (unless mode
-		(turn-off-mcomplete-mode)))))
-
 ;;;-------------------------------------------------------------------
 ;;; dired のカスタマイズ
 ;; ディレクトリの再帰コピーを可能に
@@ -628,7 +609,7 @@ type1 はセパレータを消去するもの。")
 						   (unix-to-dos-filename (directory-file-name
 												  dired-directory)))
 		  ;; Meadow 付属の fiber.exe だと xlsx の起動に失敗してるようなので start.js を自作
-		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name "~/.emacs.d/bin/mystart.js")) (unix-to-dos-filename file)))))))
+		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name "~/.emacs.d/bin/start.js")) (unix-to-dos-filename file)))))))
 
 ;; ディレクトリ移動してもソート方法を変化させない
 (defadvice dired-advertised-find-file
@@ -743,13 +724,13 @@ type1 はセパレータを消去するもの。")
 (setq dmoccur-exclusion-mask
 	  (append '("\\~$" "\\.svn\\/" "\\.keep$") dmoccur-exclusion-mask))
 ;; moccur 結果を編集して元ファイルに反映
-(eval-after-load "color-moccur"
-  '(require 'moccur-edit))
-;; moccur-edit で、各バッファで変更が適用された行に色がつく
-;  色を消すときには moccur-edit-remove-overlays
-;  自動で消すなら moccur-edit-remove-overlays を t
-(setq moccur-edit-highlight-edited-text t)
-(setq moccur-edit-remove-overlays t)
+;(eval-after-load "color-moccur"
+;  '(require 'moccur-edit))
+;;; moccur-edit で、各バッファで変更が適用された行に色がつく
+;;  色を消すときには moccur-edit-remove-overlays
+;;  自動で消すなら moccur-edit-remove-overlays を t
+;(setq moccur-edit-highlight-edited-text t)
+;(setq moccur-edit-remove-overlays t)
 
 ;;;-------------------------------------------------------------------
 ;;; shell の設定
@@ -765,8 +746,9 @@ type1 はセパレータを消去するもの。")
 	   (setq shell-file-name "cmd.exe /C")
 	   (setq shell-command-switch "/K")))
 (add-hook 'shell-mode-hook
-		  (lambda () (set-buffer-process-coding-system
-					  'utf-8-unix 'utf-8-unix)))
+		  (lambda () (if (string= on-shell "cmdproxy.exe")
+						 (set-buffer-process-coding-system 'japanese-shift-jis-dos 'japanese-shift-jis-dos)
+					   (set-buffer-process-coding-system 'utf-8-unix 'utf-8-unix))))
 ;; 余計な echo をなくす
 (add-hook 'comint-mode-hook (lambda () (setq comint-process-echoes t)))
 
@@ -788,6 +770,7 @@ type1 はセパレータを消去するもの。")
   t)
 (autoload 'shell-toggle-cd "shell-toggle"
   "Pops up a shell-buffer and insert a \"cd \" command." t)
+(setq shell-toggle-launch-shell 'shell)	; ansi-shell や eshell でなく shell を使う
 
 ;;;-------------------------------------------------------------------
 ;;; cygwin-mount : Cygwin のパスを理解させる
@@ -968,7 +951,7 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;;;-------------------------------------------------------------------
 ;;; what-char  C-x = (what-cursor-position) は Emacs 内部コードしか出さないので導入
-(load "what-char")
+;(load "what-char")
 
 ;;;-------------------------------------------------------------------
 ;;; 不用意に C-xC-n を押してカーソルを上下させたときのカラムを固定にしないよう、コマンドを無効にする
@@ -1016,10 +999,10 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; org-mode
 (require 'org)
 ;; TODO やスケジュール管理するファイル
-(when run-windows
-  ;; org-agenda-directory に設定したディレクトリにある *.org 全てを対象にする
-  (defconst org-agenda-directory "~/work/general/working-memo/")
-  (setq org-agenda-files (directory-files org-agenda-directory t "\.org$" t)))
+;(when run-windows
+;  ;; org-agenda-directory に設定したディレクトリにある *.org 全てを対象にする
+;  (defconst org-agenda-directory "~/work/general/working-memo/")
+;  (setq org-agenda-files (directory-files org-agenda-directory t "\.org$" t)))
 ;; TODO → DONE 時に時刻を挿入
 (setq org-log-done 'time)
 ;; .org を org-mode で開く (デフォルトで設定されている)
@@ -1131,7 +1114,7 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;;;-------------------------------------------------------------------
 ;;; emacs-w3m
-(require 'w3m-load)
+;(require 'w3m-load)
 
 ;;; 自作関数
 (load "oz")
