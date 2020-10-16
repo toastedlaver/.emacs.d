@@ -1,0 +1,9 @@
+*.exe
+*.dll
+*.elc
+/recentf
+/backup/
+/elpa/
+/etc/
+/info/
+/server/
