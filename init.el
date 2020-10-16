@@ -524,7 +524,7 @@ type1 はセパレータを消去するもの。")
 							 minibuffer-local-must-match-map))))
 
 ;;;-------------------------------------------------------------------
-;;; C や Elisp でメニューバーに imenu を出す、さらに C-c g で imenu 起動
+;;; C や Elisp でメニューバーに imenu を出す
 (require 'imenu)
 (defcustom imenu-modes
   '(emacs-lisp-mode c-mode c++-mode makefile-mode diff-mode)
@@ -537,7 +537,6 @@ type1 はセパレータを消去するもの。")
   (if (member major-mode imenu-modes)
 	  (imenu-add-to-menubar "imenu")))
 (add-hook 'find-file-hooks 'my-imenu-ff-hook t)
-(global-set-key "\C-cg" 'imenu)
 
 ;;;-------------------------------------------------------------------
 ;;; dired のカスタマイズ
@@ -1064,7 +1063,7 @@ check for the whole contents of FILE, otherwise check for the first
 (define-key global-map (kbd "M-x") 'helm-M-x)
 (global-set-key (kbd "\C-xb") 'helm-mini)
 (global-set-key (kbd "\C-co") 'helm-occur)
-(global-set-key (kbd "\C-cg") 'helm-imenu)
+(global-set-key (kbd "\C-ci") 'helm-imenu)
 (global-set-key (kbd "\C-cr") 'helm-resume)
 (global-set-key (kbd "M-.") 'helm-etags-select)
 (global-set-key (kbd "M-y") 'helm-show-kill-ring)
