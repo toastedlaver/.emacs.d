@@ -39,9 +39,10 @@
 
 ;;;;-------------------------------------------------------------------
 ;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
-(package-initialize)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-(add-to-list 'package-archives '("melpa-stable" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
+(package-initialize)
 
 ;;;-------------------------------------------------------------------
 ;;; load-path の設定
@@ -225,17 +226,12 @@
 (setq migemo-command "cmigemo")
 (setq migemo-options '("-q" "--emacs" "-i" "\a"))
 ;; migemo-dict のパス/文字コードを指定
-(let ((lang (or (getenv "LANG") (if run-windows "ja_JP.SJIS" "ja_JP.eucJP"))))
-  (cond ((string= lang "ja_JP.SJIS")
-		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/cp932/migemo-dict"))
-		 (setq migemo-coding-system 'japanese-shift-jis-unix))
-		((string= lang "ja_JP.eucJP")
-		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/euc-jp.d/migemo-dict"))
-		 (setq migemo-coding-system 'euc-jp-unix))
-		(t								; ja_JP.UTF-8
-		 (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict"))
-		 (setq migemo-coding-system 'utf-8-unix))))
-
+;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
+;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
+(if run-windows
+	(setq migemo-dictionary (expand-file-name "~/AppData/Local/cmigemo/dict/utf-8/migemo-dict"))
+  (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict")))
+(setq migemo-coding-system 'utf-8-unix)
 (setq migemo-user-dictionary nil)
 (setq migemo-regex-dictionary nil)
 
@@ -250,8 +246,9 @@
 
 ;;;-------------------------------------------------------------------
 ;;; SKK
-(require 'skk-autoloads)
+;(require 'skk-autoloads)
 ;; 辞書の設定
+;; Win は SKKFEP の辞書を使おうかと思ったが、文字コード等が変わっているので諦める
 (setq skk-large-jisyo "~/.emacs.d/etc/skk/SKK-JISYO.L")
 (setq skk-tut-file "~/.emacs.d/etc/skk/SKK.tut")
 
@@ -548,12 +545,12 @@ type1 はセパレータを消去するもの。")
 (setq ls-lisp-dirs-first t)
 
 ;; s でファイルをソート
-(when (not on-windows-native)
-  ;; sorter は ls を使うため Windows では使えない
-  (add-hook 'dired-load-hook
-			(lambda ()
-;			  (require 'sorter))))
-			  (load "sorter" nil t))))
+;; sorter.el がなくなったので使えない
+;(when (not on-windows-native)
+;  ;; sorter は ls を使うため Windows では使えない
+;  (add-hook 'dired-load-hook
+;			(lambda ()
+;			  (load "sorter" nil t))))
 
 ;; r でバッファ上でファイル名を編集
 (require 'wdired)
@@ -923,17 +920,7 @@ check for the whole contents of FILE, otherwise check for the first
 (setq paragraph-start '"^\\([ 　【・○●◎□■◇◆＜《<\t\n\f]\\|(?[0-9a-zA-Z]+)\\)")
 
 ;;;-------------------------------------------------------------------
-;;; 動的略語展開 dabbrev を拡張
-(load "dabbrev-ja")						;日本語拡張された dabbrev
-(require 'dabbrev-highlight)			;補完した文字を強調表示
-
-;;;-------------------------------------------------------------------
-;;; shell-command のコマンド入力に補完が効くようにする
-(require 'shell-command)
-(shell-command-completion-mode)
-
-;;;-------------------------------------------------------------------
-;;; Subversion クライアント
+;;; Subversion インターフェース
 (require 'psvn)
 ;; 高速化
 (setq svn-status-verbose nil)
@@ -947,6 +934,10 @@ check for the whole contents of FILE, otherwise check for the first
   (defun svn-status-state-mark-modeline-dot (color)
 	(propertize "●"
 				'face (list :foreground color))))
+
+;;;-------------------------------------------------------------------
+;;; git インターフェース
+;(require 'magit)
 
 ;;;-------------------------------------------------------------------
 ;;; what-char  C-x = (what-cursor-position) は Emacs 内部コードしか出さないので導入
@@ -1023,7 +1014,7 @@ check for the whole contents of FILE, otherwise check for the first
 ;;;-------------------------------------------------------------------
 ;;; helm : 候補選択フレームワーク。 anything の fork だがこちらの方が一般らしい
 (setq dired-bind-jump nil) ;; SKK とキーバインド衝突回避
-(require 'helm-config)
+(require 'helm)
 (helm-mode 1)
 
 ;; ミニバッファで `kill-line' を有効に
@@ -1110,10 +1101,6 @@ check for the whole contents of FILE, otherwise check for the first
 (setq helm-ag-insert-at-point 'symbol)
 ;; grep の除外ファイルや除外ディレクトリを使う
 (setq helm-ag-use-grep-ignore-list t)
-
-;;;-------------------------------------------------------------------
-;;; emacs-w3m
-;(require 'w3m-load)
 
 ;;; 自作関数
 (load "oz")
@@ -1211,3 +1198,16 @@ check for the whole contents of FILE, otherwise check for the first
 ;●*scrach* バッファ等で式や値を評価した際、表示が途中で途切れる場合は下記を nil にする
 ;  eval-expression-print-level : 評価した結果を表示する際、省略せずに表示するリストのネストの深さ。デフォルトは4
 ;  eval-expression-print-length: 評価した結果を表示する際、省略せずに表示するリストの要素数。デフォルトは12
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(magit recentf-ext migemo helm-swoop helm-gtags helm-ag ddskk color-moccur bf-mode)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
