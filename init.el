@@ -39,10 +39,15 @@
 
 ;;;;-------------------------------------------------------------------
 ;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
+;;;; M-x package-list-packages : パッケージ操作バッファを開く
+;;;; これよりも
+;;;; M-x package-refresh-contents : パッケージ情報を更新する
+;;;; M-x package-install <RET> パッケージ名 : パッケージをインストールする
+;;;; の方が手軽にできる
+(package-initialize)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
-(package-initialize)
 
 ;;;-------------------------------------------------------------------
 ;;; load-path の設定
@@ -210,7 +215,7 @@
 	(comment-end  . " */")
 	))
 (add-hook 'c-mode-common-hook
-		  '(lambda ()
+		  (lambda ()
 			 ;; 自分用のスタイルを追加
 			 (c-add-style "my-c-style" my-c-style t)
 			 (c-add-style "my-cpp-style" my-cpp-style t)
@@ -223,11 +228,13 @@
 ;;;-------------------------------------------------------------------
 ;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
 ;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
-(setq migemo-command "cmigemo")
+;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
+(if run-windows
+	(setq migemo-command "~/AppData/Local/cmigemo/cmigemo.exe")
+  (setq migemo-command "cmigemo"))
 (setq migemo-options '("-q" "--emacs" "-i" "\a"))
 ;; migemo-dict のパス/文字コードを指定
 ;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
-;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
 (if run-windows
 	(setq migemo-dictionary (expand-file-name "~/AppData/Local/cmigemo/dict/utf-8/migemo-dict"))
   (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict")))
@@ -395,7 +402,7 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 (ad-activate 'font-lock-mode)
 ;; settings for text-mode
 (add-hook 'text-mode-hook
-          '(lambda ()
+          (lambda ()
              (progn
                (font-lock-mode t)
                (font-lock-fontify-buffer))))
@@ -406,6 +413,7 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 (setq history-length t)
 (when (require 'session nil t)
   (setq session-save-file-coding-system 'utf-8-unix)
+  (setq session-save-file (expand-file-name "~/.emacs.d/.session"))
   (setq session-set-file-name-exclude-regexp "/\\.overview\\|.session\\|News/\\|^\\.")
   (setq session-initialize '(de-saveplace session keys menus places)
 		session-globals-include '((kill-ring 50)
@@ -585,7 +593,7 @@ type1 はセパレータを消去するもの。")
 (when run-windows
   (defun unix-to-dos-filename (path)
 	"unix のパスを dos に変更する…て言ってるけど '/' を '\' に変換してるだけ (sjis にもしてるけど) "
-	(encode-coding-string (concat (mapcar '(lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'sjis))
+	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'sjis))
   (defvar my-filer "D:/bin/TablacusExplorer/TE32.exe")
   (add-hook 'dired-mode-hook
 			(lambda ()
@@ -713,7 +721,7 @@ type1 はセパレータを消去するもの。")
 ;; *.c 編集中のデフォルトファイルマスク： \.[HhCc]$
 (add-hook
  'c-mode-common-hook
- '(lambda ()
+ (lambda ()
     (setq moccur-grep-default-mask "\\.\[HhCc\]$\\|\\.cpp$\\|\\.inc$\\|\\.asm$")))
 (autoload 'dmoccur "color-moccur" nil t)
 ;; 検索対象にしないファイルを追加
@@ -963,7 +971,7 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; デフォルトの perl-mode ではなく cperl-mode を使う
 (defalias 'perl-mode 'cperl-mode)
 (add-hook 'cperl-mode-hook
-          '(lambda ()
+          (lambda ()
 			 (cperl-set-style "C++")))
 
 ;;;----------------------------------------------------------------------
@@ -978,7 +986,7 @@ check for the whole contents of FILE, otherwise check for the first
 (autoload 'gtags-mode "gtags" "" t)
 ;; helm-gtags を使うのでキーバインドは変えない
 ;(setq gtags-mode-hook
-;	  '(lambda ()
+;	  (lambda ()
 ;		 (local-set-key "\M-t" 'gtags-find-tag)
 ;		 (local-set-key "\M-r" 'gtags-find-rtag)
 ;		 (local-set-key "\M-s" 'gtags-find-symbol)
@@ -1076,7 +1084,7 @@ check for the whole contents of FILE, otherwise check for the first
 (add-hook 'c-mode-common-hook 'helm-gtags-mode)
 ;; key bindings
 (add-hook 'helm-gtags-mode-hook
-		  '(lambda ()
+		  (lambda ()
 			 (local-set-key (kbd "M-t") 'helm-gtags-find-tag)
 			 (local-set-key (kbd "M-r") 'helm-gtags-find-rtag)
 			 (local-set-key (kbd "M-s") 'helm-gtags-find-symbol)
