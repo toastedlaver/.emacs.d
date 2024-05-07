@@ -928,6 +928,11 @@ check for the whole contents of FILE, otherwise check for the first
 (setq paragraph-start '"^\\([ 　【・○●◎□■◇◆＜《<\t\n\f]\\|(?[0-9a-zA-Z]+)\\)")
 
 ;;;-------------------------------------------------------------------
+;;; 動的略語展開 dabbrev (M-/) の拡張
+(load "dabbrev-ja")	;original は空白で単語を区別するので日本語と合わないので導入
+(require 'dabbrev-highlight)		   ;上記で補完した単語に色をつける
+
+;;;-------------------------------------------------------------------
 ;;; Subversion インターフェース
 (require 'psvn)
 ;; 高速化
