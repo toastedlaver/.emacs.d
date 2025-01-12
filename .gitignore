@@ -1,10 +1,12 @@
 *.exe
 *.dll
 *.elc
+/.session
+/migemo-pattern
 /recentf
+/auto-custom.el
 /backup/
 /elpa/
 /etc/
 /info/
 /server/
-auto-custom.el
