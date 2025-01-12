@@ -416,9 +416,9 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
   (setq session-save-file (expand-file-name "~/.emacs.d/.session"))
   (setq session-set-file-name-exclude-regexp "/\\.overview\\|.session\\|News/\\|^\\.")
   (setq session-initialize '(de-saveplace session keys menus places)
-		session-globals-include '((kill-ring 50)
+		session-globals-include '((kill-ring 100)
 								  (session-file-alist 500 t)
-								  (file-name-history 10000)))
+								  (file-name-history 500)))
   (add-hook 'after-init-hook 'session-initialize)
   ;; 前回ファイルを閉じたときのカーソル位置に復帰 (設定しないとファイル保存時の位置になってしまう)
   (setq session-undo-check -1))
@@ -1140,6 +1140,13 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; ※他の設定が上書きするみたいなので、最後に実行させること
 (setq-default minor-mode-alist nil)
 
+;;; custom-set-variables や custom-set-faces が init.el 末尾に自動挿入するので別ファイルに移す
+(setq custom-file "~/.emacs.d/auto-custom.el")
+;; 読み出し
+(condition-case nil
+    (load custom-file)
+  (error nil))
+
 ;;;-------------------------------------------------------------------
 ;;; その他メモ欄 (いつも忘れるのでここに書いておく)
 ;■キーバインド
@@ -1211,16 +1218,3 @@ check for the whole contents of FILE, otherwise check for the first
 ;●*scrach* バッファ等で式や値を評価した際、表示が途中で途切れる場合は下記を nil にする
 ;  eval-expression-print-level : 評価した結果を表示する際、省略せずに表示するリストのネストの深さ。デフォルトは4
 ;  eval-expression-print-length: 評価した結果を表示する際、省略せずに表示するリストの要素数。デフォルトは12
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(magit recentf-ext migemo helm-swoop helm-gtags helm-ag ddskk color-moccur bf-mode)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
