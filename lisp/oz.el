@@ -62,6 +62,22 @@
 					 ""))
 	(grep-find (format "find %s -type f %s -print0 | xargs -0 grep -Ein \"%s\" /dev/null" dir mask-str word))))
 
+;;; 自作 grep part2 (ripgrep & migemo)
+(defun oz-mipgrep (word dir &optional mige-mode)
+  (interactive
+   (list (read-from-minibuffer "words:" (thing-at-point 'symbol))
+		 (read-directory-name "Top directory : ")
+		 current-prefix-arg))
+  (let* ((word-regex (if mige-mode
+						 (replace-regexp-in-string "[\n\r]+$" ""
+												   (shell-command-to-string
+													(mapconcat #'shell-quote-argument
+															   (list (executable-find migemo-command "-q" "-d"
+																					  migemo-directory "-w" word)
+																	 " ")))
+												   word)))
+		 (ripgrep-regexp word-regex dir))))
+
 (defun oz-get-filename (&optional mode)
   "カレントバッファが訪問しているファイル名を <ファイル名>:<行数> のフォーマットで
 kill-ring に入れる。引数付きならフルパスになる。

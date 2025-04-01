@@ -411,17 +411,17 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 ;;; session.el : kill-ring や ミニバッファで過去に開いたファイルなどの履歴を保存する
 ;; ミニバッファ履歴リストの最大長：tなら無限
 (setq history-length t)
-(when (require 'session nil t)
-  (setq session-save-file-coding-system 'utf-8-unix)
-  (setq session-save-file (expand-file-name "~/.emacs.d/.session"))
-  (setq session-set-file-name-exclude-regexp "/\\.overview\\|.session\\|News/\\|^\\.")
-  (setq session-initialize '(de-saveplace session keys menus places)
-		session-globals-include '((kill-ring 100)
-								  (session-file-alist 500 t)
-								  (file-name-history 500)))
-  (add-hook 'after-init-hook 'session-initialize)
-  ;; 前回ファイルを閉じたときのカーソル位置に復帰 (設定しないとファイル保存時の位置になってしまう)
-  (setq session-undo-check -1))
+(require 'session)
+(setq session-save-file-coding-system 'utf-8-unix)
+(setq session-save-file (expand-file-name "~/.emacs.d/.session"))
+(setq session-set-file-name-exclude-regexp "/\\.overview\\|.session\\|News/\\|^\\.")
+(setq session-initialize '(de-saveplace session keys menus places)
+	  session-globals-include '((kill-ring 100)
+								(session-file-alist 500 t)
+								(file-name-history 500)))
+(add-hook 'after-init-hook 'session-initialize)
+;; 前回ファイルを閉じたときのカーソル位置に復帰 (設定しないとファイル保存時の位置になってしまう)
+(setq session-undo-check -1)
 
 ;;;-------------------------------------------------------------------
 ;;; ミニバッファの文字削除をブロック単位で
@@ -780,7 +780,7 @@ type1 はセパレータを消去するもの。")
 ;;; cygwin-mount : Cygwin のパスを理解させる
 ;;; ※かつてあった機能拡張版の cygwin-mount-mw32 はマウント情報をレジストリから読むため
 ;;; 最新の Cygwin (レジストリ使わず fstab 使う) では使えない
-(when on-cygwin
+(when (or on-cygwin on-msys)
   (require 'cygwin-mount)
   (cygwin-mount-activate)
   ;; shell-toggle の Cygwin 用設定
