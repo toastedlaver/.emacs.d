@@ -1,6 +1,6 @@
-;;;; -*- mode: emacs-lisp; coding: iso-2022-7bit -*-
+;;;; -*- mode: emacs-lisp; coding: utf-8 -*-
 ;;;-------------------------------------------------------------------
-;;; $B4D6-$rJ,$1$k$?$a$NDj5A(B
+;;; 環境を分けるための定義
 (defvar run-unix
   (or (equal system-type 'gnu/linux)
 	  (equal system-type 'usg-unix-v)))
@@ -9,21 +9,21 @@
 	   (or (equal system-type 'windows-nt)
 		   (equal system-type 'ms-dos)
 		   (equal system-type 'cygwin))))
-;; $B$I$N4D6-$GF0$$$F$$$k$+(B (for Win)
-;; $B>r7o(B1: $B4D6-JQ?t(B SHELL $B$NCM(B (native $B4D6-$G$b(B emacs $B$,@_Dj$7$F$/$l$k$]$$(B)
-;;   cmdproxy.exe $B"*(B native
-;;   bash, tcsh $B$J$I(B $B"*(B cygwin or msys
-;; $B>r7o(B2: $B4D6-JQ?t(B MSYSTEM
-;;   $BB8:_$9$k(B $B"*(B msys
-;;   $BB8:_$7$J$$(B $B"*(B native or cygwin
+;; どの環境で動いているか (for Win)
+;; 条件1: 環境変数 SHELL の値 (native 環境でも emacs が設定してくれるぽい)
+;;   cmdproxy.exe → native
+;;   bash, tcsh など → cygwin or msys
+;; 条件2: 環境変数 MSYSTEM
+;;   存在する → msys
+;;   存在しない → native or cygwin
 (defvar on-shell
   (or (and (getenv "SHELL")
 		   (file-name-nondirectory (getenv "SHELL")))
-	  "")) ;SHELL $B$,Dj5A$5$l$F$J$$>l9g(B
-(if (string= on-shell "") (setq on-shell "cmdproxy.exe")) ;SHELL $B$,$J$$(B or $B%U%!%$%k$8$c$J$$>l9g$O(B win-native $B07$$(B
-;; $B",$3$3=$@5$,I,MW(B
-;; unix $B$N>l9g$G$b!"(B shell $B$,(B cmdproxy $B$K$J$C$F$7$^$&(B
-;; on-shell $B$NF~$lJ}$+$i=$@5$7$?J}$,NI$$(B (getenv $B$7$?CM$rF~$l$F$+$i(B nil $B$dB8:_$7$J$$>l9g$N%1%"$9$k(B)
+	  "")) ;SHELL が定義されてない場合
+(if (string= on-shell "") (setq on-shell "cmdproxy.exe")) ;SHELL がない or ファイルじゃない場合は win-native 扱い
+;; ↑ここ修正が必要
+;; unix の場合でも、 shell が cmdproxy になってしまう
+;; on-shell の入れ方から修正した方が良い (getenv した値を入れてから nil や存在しない場合のケアする)
 (defvar on-windows-native
   (and run-windows
 	   (string= on-shell "cmdproxy.exe")))
@@ -37,27 +37,27 @@
 	   (not on-msys)))
 
 ;;;-------------------------------------------------------------------
-;;; customize $B$GA^F~$5$l$k%3!<%I$rJL%U%!%$%k$K0\$9(B
-;;; (init.el $B$,ESCf$G%(%i!<$7$F$bM-8z$K$J$k$h$&@hF,IU6a$G@k8@$7$F$*$/(B
+;;; customize で挿入されるコードを別ファイルに移す
+;;; (init.el が途中でエラーしても有効になるよう先頭付近で宣言しておく
 (setq custom-file "~/.emacs.d/auto-custom.el")
 
 ;;;;-------------------------------------------------------------------
-;;;; $B%Q%C%1!<%84IM}(B  $B"($I$&$d$i<RFb4D6-$G$ODL?.$G$-$J$$$h$&$@!D(B
-;;;; M-x package-list-packages : $B%Q%C%1!<%8A`:n%P%C%U%!$r3+$/(B
-;;;; $B$3$l$h$j$b(B
-;;;; M-x package-refresh-contents : $B%Q%C%1!<%8>pJs$r99?7$9$k(B
-;;;; M-x package-install <RET> $B%Q%C%1!<%8L>(B : $B%Q%C%1!<%8$r%$%s%9%H!<%k$9$k(B
-;;;; $B$NJ}$,<j7Z$K$G$-$k(B
+;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
+;;;; M-x package-list-packages : パッケージ操作バッファを開く
+;;;; これよりも
+;;;; M-x package-refresh-contents : パッケージ情報を更新する
+;;;; M-x package-install <RET> パッケージ名 : パッケージをインストールする
+;;;; の方が手軽にできる
 (package-initialize)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
 
 ;;;-------------------------------------------------------------------
-;;; load-path $B$N@_Dj(B
+;;; load-path の設定
 (defconst my-lisp-dir "~/.emacs.d/lisp")
 (add-to-list 'load-path my-lisp-dir)
-;; my-lisp-dir $B$N2<0L%G%#%l%/%H%j$rA4$F(B load-path $B$KDI2C(B
+;; my-lisp-dir の下位ディレクトリを全て load-path に追加
 (require 'cl-lib)
 (cl-loop for f in (directory-files my-lisp-dir t)
 		 when (and (file-directory-p f)
@@ -65,20 +65,20 @@
 		 do (add-to-list 'load-path f))
 
 ;;;-------------------------------------------------------------------
-;;; $B30It%3%^%s%I$N%Q%9(B
+;;; 外部コマンドのパス
 (setq exec-path
 	  (append
-	   ;;  $BFH<+$N%3%^%s%I$rF~$l$?>l9g$J$I(B
+	   ;;  独自のコマンドを入れた場合など
 	   exec-path (list "~/.emacs.d/bin")
-	   ;; MinGw + MSYS $B$r;H$&>l9g(B
+	   ;; MinGw + MSYS を使う場合
 ;;	   exec-path (list "c:/Program Files/msys/1.0/local/bin" "c:/Program Files/MinGw/bin" "c:/Program Files/msys/1.0/bin")
 	   ))
-;; $B$b$7$/$O!"2<5-$NMM$K<B9T%3%^%s%I$rJT=8$9$k(B
+;; もしくは、下記の様に実行コマンドを編集する
 ;(setq diff-command "~/bin/diff.exe")
 ;(setq ediff-diff-program "~/bin/diff.exe")
 
 ;;;-------------------------------------------------------------------
-;;; $BF|K\8l4D6-@_Dj(B
+;;; 日本語環境設定
 (set-language-environment "Japanese")
 ;(if run-unix
 ;	(prefer-coding-system 'euc-jp-unix)
@@ -86,108 +86,108 @@
 (prefer-coding-system 'utf-8-unix)
 
 ;;;-------------------------------------------------------------------
-;;; font lock $B$r(B ON ($B%F%-%9%H%U%!%$%k$O%G%U%)%k%H$G(B ON $B$K$J$i$J$$$?$aDI2C(B)
+;;; font lock を ON (テキストファイルはデフォルトで ON にならないため追加)
 (global-font-lock-mode t)
 
 ;;;-------------------------------------------------------------------
-;;; $B%P%C%/%"%C%W$N@_Dj(B
-;; $B%U%!%$%kJ]4I>l=jJQ99(B
+;;; バックアップの設定
+;; ファイル保管場所変更
 (setq make-backup-files t)
 (setq backup-directory-alist
 	  (cons (cons "\\.*$" (expand-file-name "~/.emacs.d/backup"))
 			backup-directory-alist))
-;; $B<+F0J]B8%j%9%H%U%!%$%k(B ($B<+F0J]B8%U%!%$%k$N%j%9%H$r<}$a$?%U%!%$%k(B) $B$r:n$i$J$$(B $B"($"$C$F$b8+$k$3$H$J$$!D!#(B
+;; 自動保存リストファイル (自動保存ファイルのリストを収めたファイル) を作らない ※あっても見ることない…。
 (setq auto-save-list-file-prefix nil)
 
 ;;;-------------------------------------------------------------------
-;;; $B%j!<%8%g%s$K?'(B
+;;; リージョンに色
 (setq transient-mark-mode t)
 
 ;;;-------------------------------------------------------------------
-;;; $BBP1~$9$k3g8L$K?'(B
+;;; 対応する括弧に色
 (show-paren-mode t)
-;; $BBP1~$9$k3g8L$,2hLL30$N$H$-$O3g8LFbA4$F%O%$%i%$%H(B
+;; 対応する括弧が画面外のときは括弧内全てハイライト
 (setq show-paren-style 'mixed)
-;; $B?'@_Dj(B $B"*(B $B%(%i!<$K$J$k$N$G%3%a%s%H%"%&%H(B
+;; 色設定 → エラーになるのでコメントアウト
 ;(set-face-background 'show-paren-match-face "gray10")
 ;(set-face-foreground 'show-paren-match-face "SkyBlue")
 
 ;;;-------------------------------------------------------------------
-;;; BS $B$d(B Del $B$G%j!<%8%g%sFb$NJ8;z$r:o=|(B
+;;; BS や Del でリージョン内の文字を削除
 (delete-selection-mode t)
 
 ;;;-------------------------------------------------------------------
-;;; Kill $B;~$K2~9T$b4^$a$k(B
+;;; Kill 時に改行も含める
 (setq kill-whole-line t)
 
 ;;;-------------------------------------------------------------------
-;;;$B%?%V$N@_Dj(B $B!D(B $BI=<(I}(B 4, $B%+!<%=%k0\F0$7$?$H$-$N0LCV$r(B 4 $B$NG\?t$K(B
+;;;タブの設定 … 表示幅 4, カーソル移動したときの位置を 4 の倍数に
 (setq-default tab-width 4)
 (setq tab-stop-list
 	  '(  4   8  12  16  20  24  28  32  36  40  44  48  52  56  60  64  68  72  76  80  84  88  92  96 100
 		104 108 112 116 120 124 128 132 136 140 144 148 152 156 160 164 168 172 176 180 184 188 192 196 200))
 
 ;;;-------------------------------------------------------------------
-;;; yes/no $B"*(B y/n
+;;; yes/no → y/n
 (fset 'yes-or-no-p 'y-or-n-p)
 
 ;;;-------------------------------------------------------------------
-;;; $B%+!<%=%k9T$K2<@~(B
+;;; カーソル行に下線
 (setq hl-line-face 'underline)
 (global-hl-line-mode)
 
 ;;;-------------------------------------------------------------------
-;;; 1$B9T$E$D%9%/%m!<%k(B
+;;; 1行づつスクロール
 (setq scroll-conservatively 1)
-(setq comint-scroll-show-maximum-output t) ;shell $BMQ(B
+(setq comint-scroll-show-maximum-output t) ;shell 用
 
 ;;;-------------------------------------------------------------------
-;;; $B%+!<%=%k0\F0$rJ*M}0\F0$K(B (emacs 23 $B$+$i%G%U%)%k%H$,O@M}$K$J$C$?(B)
+;;; カーソル移動を物理移動に (emacs 23 からデフォルトが論理になった)
 (setq line-move-visual nil)
 
 ;;;-------------------------------------------------------------------
-;;; $B%D!<%k%P!<>C$9(B
+;;; ツールバー消す
 (tool-bar-mode 0)
 
 ;;;-------------------------------------------------------------------
-;;; $B%a%K%e!<%P!<>C$9(B ($B%3%s%=!<%kMQ(B)
+;;; メニューバー消す (コンソール用)
 (when (not window-system)
   (menu-bar-mode 0))
 
 ;;;-------------------------------------------------------------------
-;;; $B%+!<%=%k$H%^%&%9%]%$%s%?$,=E$J$i$J$$$h$&$K$9$k!#(B($B%]%$%s%?$rF($,$9(B)
-;;; Meadow $B$J$i%]%$%s%?>C$;$?$s$@$1$I!#!#!#(B
+;;; カーソルとマウスポインタが重ならないようにする。(ポインタを逃がす)
+;;; Meadow ならポインタ消せたんだけど。。。
 (when window-system
-  (mouse-avoidance-mode 'animate)) ; $BB>$K$b1&>e$KHt$P$9$H$+?'!9$J%b!<%I$,$"$k(B
+  (mouse-avoidance-mode 'animate)) ; 他にも右上に飛ばすとか色々なモードがある
 
 ;;;-------------------------------------------------------------------
-;;; elscreen $B$N%?%V$rI=<($7$J$$(B $B"(=P$9$H$-$O(B C-z T $B$+%a%K%e!<%P!<$h$j(B
+;;; elscreen のタブを表示しない ※出すときは C-z T かメニューバーより
 (setq elscreen-display-tab nil)
 
 ;;;-------------------------------------------------------------------
-;;; $B%b!<%I%i%$%sI=<($N%+%9%?%^%$%:(B
-;; $B%+%i%`?tI=<((B
+;;; モードライン表示のカスタマイズ
+;; カラム数表示
 (column-number-mode t)
-;; $B;~7W(B
+;; 時計
 (setq display-time-string-forms
 	  '(year "/" month "/" day "[" dayname "] " 24-hours ":" minutes))
 (display-time)
 
-;; $B%P%C%U%!L>$,=EJ#$7$?>l9g$O?t;z$8$c$J$/%G%#%l%/%H%jL>$r$D$1$k(B
+;; バッファ名が重複した場合は数字じゃなくディレクトリ名をつける
 (require 'uniquify)
 (setq uniquify-buffer-name-style 'post-forward-angle-brackets)
-; $B%P%C%U%!L>$rJQ99$9$k$HIT6q9g$,=P$k$b$N$X$NBP:v(B
+; バッファ名を変更すると不具合が出るものへの対策
 (setq uniquify-ignore-buffers-re "*[^*]+*")
 
 ;;;-------------------------------------------------------------------
-;;; c-mode $B$N%9%?%$%k@_Dj(B
+;;; c-mode のスタイル設定
 (defconst my-cpp-style
   '(
-	;; $B4pK\$H$J$k%$%s%G%s%H(B
+	;; 基本となるインデント
 	(c-basic-offset . 4)
-	;; $B%3%a%s%H9T$N%$%s%G%s%H(B
+	;; コメント行のインデント
 	(c-comment-only-line-offset . (0 . 0))
-	;; $B%$%s%G%s%H$r0J2<$G@_Dj(B (+/- $B!D(B $B%Y!<%9$N(B+1/-1$BG\(B, ++/-- $B$G(B 2 $BG\(B)
+	;; インデントを以下で設定 (+/- … ベースの+1/-1倍, ++/-- で 2 倍)
 	(c-offsets-alist . ((statement-block-intro . +)
 						(knr-argdecl-intro . 0)
 						(substatement-open . 0)
@@ -201,11 +201,11 @@
 	))
 (defconst my-c-style
   '(
-	;; $B4pK\$H$J$k%$%s%G%s%H(B
+	;; 基本となるインデント
 	(c-basic-offset . 4)
-	;; $B%3%a%s%H9T$N%$%s%G%s%H(B
+	;; コメント行のインデント
 	(c-comment-only-line-offset . (0 . 0))
-	;; $B%$%s%G%s%H$r0J2<$G@_Dj(B (+/- $B!D(B $B%Y!<%9$N(B+1/-1$BG\(B, ++/-- $B$G(B 2 $BG\(B)
+	;; インデントを以下で設定 (+/- … ベースの+1/-1倍, ++/-- で 2 倍)
 	(c-offsets-alist . ((case-label . 0)
 						(statement-block-intro . +)
 						(knr-argdecl-intro . 0)
@@ -220,25 +220,25 @@
 	))
 (add-hook 'c-mode-common-hook
 		  (lambda ()
-			 ;; $B<+J,MQ$N%9%?%$%k$rDI2C(B
+			 ;; 自分用のスタイルを追加
 			 (c-add-style "my-c-style" my-c-style t)
 			 (c-add-style "my-cpp-style" my-cpp-style t)
-			 ;; $B<+J,MQ$N%9%?%$%k$r;H$&(B
+			 ;; 自分用のスタイルを使う
 			 (c-set-style "my-c-style")
 			 ))
-;; .h $B$O(B C++ $B%b!<%I$G3+$/(B
+;; .h は C++ モードで開く
 (add-to-list 'auto-mode-alist '("\\.h$" . c++-mode))
 
 ;;;-------------------------------------------------------------------
-;;; migemo $B"*(B emacs24 $B$G$O(B https://github.com/emacs-jp/migemo/blob/master/migemo.el $B$r;H$&$3$H(B
-;; $B4pK\@_Dj(B (cmigemo) $B"(%P%$%J%j$O(B 64bit $BMQ$H(B 32bit $BMQ$,$"$k$N$GCm0U(B!!
-;; $B!&(BWindows $B$OB>%"%W%j$H$NO"7H$r9M$($F(B cmigemo $B$r(B AppData/Local $B$KF~$l$k$h$&$K$9$k(B
+;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
+;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
+;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
 (if run-windows
 	(setq migemo-command "~/AppData/Local/cmigemo/cmigemo.exe")
   (setq migemo-command "cmigemo"))
 (setq migemo-options '("-q" "--emacs" "-i" "\a"))
-;; migemo-dict $B$N%Q%9(B/$BJ8;z%3!<%I$r;XDj(B
-;; $B!&$b$&(B UTF-8 $B0J30$N4D6-$O$J$$$@$m$&$+$i(B SJIS $B$d(B EUC $B$N@_Dj$O30$9(B
+;; migemo-dict のパス/文字コードを指定
+;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
 (if run-windows
 	(setq migemo-dictionary (expand-file-name "~/AppData/Local/cmigemo/dict/utf-8/migemo-dict"))
   (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict")))
@@ -246,27 +246,27 @@
 (setq migemo-user-dictionary nil)
 (setq migemo-regex-dictionary nil)
 
-;; $B%-%c%C%7%e5!G=$rMxMQ$9$k(B
+;; キャッシュ機能を利用する
 (setq migemo-use-pattern-alist t)
 (setq migemo-use-frequent-pattern-alist t)
 (setq migemo-pattern-alist-length 1024)
 
 (load-library "migemo")
-;; $B5/F0;~$K=i4|2=$b9T$&(B
+;; 起動時に初期化も行う
 (migemo-init)
 
 ;;;-------------------------------------------------------------------
 ;;; SKK
 ;(require 'skk-autoloads)
-;; $B<-=q$N@_Dj(B
-;; Win $B$O(B SKKFEP $B$N<-=q$r;H$*$&$+$H;W$C$?$,!"J8;z%3!<%IEy$,JQ$o$C$F$$$k$N$GD|$a$k(B
+;; 辞書の設定
+;; Win は SKKFEP の辞書を使おうかと思ったが、文字コード等が変わっているので諦める
 (setq skk-large-jisyo "~/.emacs.d/etc/skk/SKK-JISYO.L")
 (setq skk-tut-file "~/.emacs.d/etc/skk/SKK.tut")
 
 (global-set-key "\C-x\C-j" 'skk-mode)
 (global-set-key "\C-xj" 'skk-mode)
 
-;; $B%$%s%/%j%a%s%?%k%5!<%A$GF|K\8lF~NO(B
+;; インクリメンタルサーチで日本語入力
 (add-hook 'isearch-mode-hook
 		  (function (lambda ()
 					  (and (boundp 'skk-mode) skk-mode
@@ -277,27 +277,27 @@
 						   (skk-isearch-mode-cleanup)
 						   (skk-set-cursor-color-properly)))))
 
-;; $BJQ49;~!$(BEnter $B$O3NDj$N$_(B ($B2~9T$7$J$$(B)
+;; 変換時，Enter は確定のみ (改行しない)
 (setq skk-egg-like-newline t)
 
-;; $B%a%C%;!<%8$OF|K\8l$G(B
+;; メッセージは日本語で
 (setq skk-japanese-message-and-error t)
 
-;;"$B!V(B"$B$rF~NO$7$?$i(B"$B!W(B"$B$b<+F0$GA^F~(B
+;;"「"を入力したら"」"も自動で挿入
 (setq skk-auto-insert-paren t)
 
-;;$B4A;zEPO?$N%_%9$r%A%'%C%/$9$k(B
+;;漢字登録のミスをチェックする
 (setq skk-check-okurigana-on-touroku t)
 
-;; $BJQ498uJd$r%$%s%i%$%s$KI=<((B
+;; 変換候補をインラインに表示
 (setq skk-show-inline t)
 
-;; isearch$B;~$K(BSKK$B$r%*%U(B
+;; isearch時にSKKをオフ
 (setq skk-isearch-start-mode 'latin)
 
-;; $B4]?t;z$r;H$&(B
+;; 丸数字を使う
 (defun skk-num-maru-suji (num)
-  (let ((s "$B-!-"-#-$-%-&-'-(-)-*-+-,---.-/-0-1-2-3-4(B")
+  (let ((s "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
 	(n (string-to-number num)))
 	(when (and (>= n 1) (<= n 20))
 	  (let ((m (1- n)))
@@ -306,10 +306,10 @@
   '(progn
 	 (add-to-list 'skk-num-type-alist '(6 . skk-num-maru-suji))))
 
-;; org-mode $B$NI=JT=8Cf$K(B Enter $B$G3NDj$G$-$J$$LdBj$rBP1~(B
+;; org-mode の表編集中に Enter で確定できない問題を対応
 ;(require 'skk-vars)
 (defadvice org-return (around skk-in-org-table activate)
-  "org-mode$B$NI=$NCf$G$b(Bskk$B$,;H$($k$h$&$K$9$k(B."
+  "org-modeの表の中でもskkが使えるようにする."
   (cond
    ((and (org-at-table-p) (when (boundp 'skk-henkan-mode) (not (equal skk-henkan-mode nil))))
 	(skk-kakutei))
@@ -320,7 +320,7 @@
 ;;; iswitchb
 (iswitchb-mode 1)
 
-;; $B%+!<%=%k%-!<$d(B SPC $B$G$b%P%C%U%!@Z49(B
+;; カーソルキーや SPC でもバッファ切換
 (add-hook 'iswitchb-define-mode-map-hook
 		  'iswitchb-my-keys)
 (defun iswitchb-my-keys ()
@@ -332,8 +332,8 @@
   (define-key iswitchb-mode-map "\C-b" 'iswitchb-prev-match)
   )
 
-;; $B8uJd$,$J$1$l$P(B find-file $B$K$J$k!#(B
-;; $B$5$i$K(B C-u C-x b $B$GDL>o$N(B C-x b
+;; 候補がなければ find-file になる。
+;; さらに C-u C-x b で通常の C-x b
 (defun iswitchb-possible-new-buffer (buf)
   "Possibly create and visit a new buffer called BUF."
   (interactive)
@@ -357,12 +357,12 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 	(setq iswitchb-method iswitchb-default-method)
 	(iswitchb)))
 
-;; $BA*BrCf$N%P%C%U%!FbMF$rI=<((B
+;; 選択中のバッファ内容を表示
 (defadvice iswitchb-exhibit
   (after
    iswitchb-exhibit-with-display-buffer
    activate)
-  "$BA*Br$7$F$$$k(B buffer $B$r(B window $B$KI=<($7$F$_$k!#(B"
+  "選択している buffer を window に表示してみる。"
   (when (and
 		 (eq iswitchb-method iswitchb-default-method)
 		 iswitchb-matches)
@@ -373,19 +373,19 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 	   (get-buffer (car iswitchb-matches))))
 	(select-window (minibuffer-window))))
 
-;; migemo $B$r;H$&(B
+;; migemo を使う
 (setq iswitchb-regexp t)
 (setq iswitchb-use-migemo-p t)
 (defadvice iswitchb-get-matched-buffers
   (before iswitchb-use-migemo activate)
-  "iswitchb $B$G(B migemo $B$r;H$C$F$_$k!#(B"
+  "iswitchb で migemo を使ってみる。"
   (when iswitchb-use-migemo-p
 	(ad-set-arg
 	 0 (migemo-get-pattern
 		(ad-get-arg 0)))))
 
 ;;;-------------------------------------------------------------------
-;;; $B%9%Z!<%9$d(BTAB$B$K?'(B
+;;; スペースやTABに色
 ;;(defface my-face-r-1 '((t (:background "gray15"))) nil)
 (defface my-face-b-1 '((t (:background "gray"))) nil)
 (defface my-face-b-2 '((t (:background "SteelBlue"))) nil)
@@ -399,7 +399,7 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
   (font-lock-add-keywords
    major-mode
    '(("\t" 0 my-face-u-1 append)
-	 ("$B!!(B" 0 my-face-b-1 append)
+	 ("　" 0 my-face-b-1 append)
 	 ("[ \t]+$" 0 my-face-b-2 append)
 	 )))
 (ad-enable-advice 'font-lock-mode 'before 'my-font-lock-mode)
@@ -412,8 +412,8 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
                (font-lock-fontify-buffer))))
 
 ;;;-------------------------------------------------------------------
-;;; session.el : kill-ring $B$d(B $B%_%K%P%C%U%!$G2a5n$K3+$$$?%U%!%$%k$J$I$NMzNr$rJ]B8$9$k(B
-;; $B%_%K%P%C%U%!MzNr%j%9%H$N:GBgD9!'(Bt$B$J$iL58B(B
+;;; session.el : kill-ring や ミニバッファで過去に開いたファイルなどの履歴を保存する
+;; ミニバッファ履歴リストの最大長：tなら無限
 (setq history-length t)
 (require 'session)
 (setq session-save-file-coding-system 'utf-8-unix)
@@ -424,30 +424,30 @@ For details of keybindings, do `\\[describe-function] iswitchb'."
 								(session-file-alist 500 t)
 								(file-name-history 500)))
 (add-hook 'after-init-hook 'session-initialize)
-;; $BA02s%U%!%$%k$rJD$8$?$H$-$N%+!<%=%k0LCV$KI|5"(B ($B@_Dj$7$J$$$H%U%!%$%kJ]B8;~$N0LCV$K$J$C$F$7$^$&(B)
+;; 前回ファイルを閉じたときのカーソル位置に復帰 (設定しないとファイル保存時の位置になってしまう)
 (setq session-undo-check -1)
 
 ;;;-------------------------------------------------------------------
-;;; $B%_%K%P%C%U%!$NJ8;z:o=|$r%V%m%C%/C10L$G(B
+;;; ミニバッファの文字削除をブロック単位で
 (defvar minibuf-shrink-type0-chars '((w3m-input-url-history . (?/ ?+ ?:))
 									 (read-expression-history . (?\) ))
 									 (t . (?/ ?+ ?~ ?:)))
-  "*minibuffer-history-variable $B$H%;%Q%l!<%?$H8+$J$9(B character $B$N(B alist $B!#(B
-type0 $B$O%;%Q%l!<%?$r;D$9$b$N!#(B")
+  "*minibuffer-history-variable とセパレータと見なす character の alist 。
+type0 はセパレータを残すもの。")
 
 (defvar minibuf-shrink-type1-chars '((file-name-history . (?.))
 									 (w3m-input-url-history . (?# ?? ?& ?.))
 									 (t . (?- ?_ ?. ? )))
-  "*minibuffer-history-variable $B$H%;%Q%l!<%?$H8+$J$9(B character $B$N(B alist $B!#(B
-type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
+  "*minibuffer-history-variable とセパレータと見なす character の alist 。
+type1 はセパレータを消去するもの。")
 
 (defun minibuf-shrink-get-chars (types)
   (or (cdr (assq minibuffer-history-variable types))
 	  (cdr (assq t types))))
 
 (defun minibuf-shrink (&optional args)
-  "point $B$,(B buffer $B$N:G8e$J$i(B 1 word $B>C5n$9$k!#$=$NB>$N>l9g$O(B delete-char $B$r5/F0$9$k!#(B
-$BC18l$N%;%Q%l!<%?$O(B minibuf-shrink-type[01]-chars $B!#(B"
+  "point が buffer の最後なら 1 word 消去する。その他の場合は delete-char を起動する。
+単語のセパレータは minibuf-shrink-type[01]-chars 。"
   (interactive "p")
   (if (/= (if (fboundp 'field-end) (field-end) (point-max)) (point))
 	  (delete-char args)
@@ -481,13 +481,13 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 (defvar minibuf-expand-filename-begin nil)
 
 (defun minibuf-expand-filename (&optional args)
-  "file-name-history $B$@$C$?$i(B minibuffer $B$NFbMF$r(B expand-file-name $B$9$k!#(B
-$BO"B3$7$F5/F0$9$k$H85$KLa$9!#(B C-u $BIU$-$@$H(B link $B$rE83+$9$k!#(B"
+  "file-name-history だったら minibuffer の内容を expand-file-name する。
+連続して起動すると元に戻す。 C-u 付きだと link を展開する。"
   (interactive "P")
   (when (eq minibuffer-history-variable 'file-name-history)
 	(let* ((try-again (eq last-command this-command))
 		   (beg (cond
-				 ;; Emacs21.3.50 + ange-ftp $B$@$H(B 2 $B2sL\$KJQ$K$J$k(B
+				 ;; Emacs21.3.50 + ange-ftp だと 2 回目に変になる
 				 ((and try-again minibuf-expand-filename-begin)
 				  minibuf-expand-filename-begin)
 				 ((fboundp 'field-beginning) (field-beginning))
@@ -533,7 +533,7 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 							 minibuffer-local-must-match-map))))
 
 ;;;-------------------------------------------------------------------
-;;; C $B$d(B Elisp $B$G%a%K%e!<%P!<$K(B imenu $B$r=P$9(B
+;;; C や Elisp でメニューバーに imenu を出す
 (require 'imenu)
 (defcustom imenu-modes
   '(emacs-lisp-mode c-mode c++-mode makefile-mode diff-mode)
@@ -548,31 +548,31 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 (add-hook 'find-file-hooks 'my-imenu-ff-hook t)
 
 ;;;-------------------------------------------------------------------
-;;; dired $B$N%+%9%?%^%$%:(B
-;; $B%G%#%l%/%H%j$N:F5"%3%T!<$r2DG=$K(B
+;;; dired のカスタマイズ
+;; ディレクトリの再帰コピーを可能に
 (setq dired-recursive-copies 'always)
 (setq dired-recursive-deletes 'always)
 
-;; $B%G%#%l%/%H%j$r@hF,$K(B
+;; ディレクトリを先頭に
 (setq ls-lisp-dirs-first t)
 
-;; s $B$G%U%!%$%k$r%=!<%H(B
-;; sorter.el $B$,$J$/$J$C$?$N$G;H$($J$$(B
+;; s でファイルをソート
+;; sorter.el がなくなったので使えない
 ;(when (not on-windows-native)
-;  ;; sorter $B$O(B ls $B$r;H$&$?$a(B Windows $B$G$O;H$($J$$(B
+;  ;; sorter は ls を使うため Windows では使えない
 ;  (add-hook 'dired-load-hook
 ;			(lambda ()
 ;			  (load "sorter" nil t))))
 
-;; r $B$G%P%C%U%!>e$G%U%!%$%kL>$rJT=8(B
+;; r でバッファ上でファイル名を編集
 (require 'wdired)
 (define-key dired-mode-map "r" 'wdired-change-to-wdired-mode)
-; $BJT=88e!"(B SKK $B$r(B OFF
+; 編集後、 SKK を OFF
 (defadvice wdired-finish-edit
   (after skk-no-use activate)
   (skk-auto-fill-mode -1))
 
-;; $B%G%#%l%/%H%j$rC)$k$H$-!"%P%C%U%!$r;D$5$J$$(B
+;; ディレクトリを辿るとき、バッファを残さない
 (defvar my-dired-before-buffer nil)
 (defadvice dired-find-file
 	(before kill-dired-buffer activate)
@@ -592,11 +592,11 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
   (if (eq major-mode 'dired-mode)
 	  (kill-buffer my-dired-before-buffer)))
 
-;; z $B$G4XO"$E$1%=%U%H$r5/F0$9$k!#%G%#%l%/%H%j$N>l9g$O%U%!%$%i$,5/F0(B
-;; C-u z $B$G:#3+$$$F$$$k%G%#%l%/%H%j$r%U%!%$%i(B/$B%(%/%9%W%m!<%i$G3+$/(B
+;; z で関連づけソフトを起動する。ディレクトリの場合はファイラが起動
+;; C-u z で今開いているディレクトリをファイラ/エクスプローラで開く
 (when run-windows
   (defun unix-to-dos-filename (path)
-	"unix $B$N%Q%9$r(B dos $B$KJQ99$9$k!D$F8@$C$F$k$1$I(B '/' $B$r(B '\' $B$KJQ49$7$F$k$@$1(B (sjis $B$K$b$7$F$k$1$I(B) "
+	"unix のパスを dos に変更する…て言ってるけど '/' を '\' に変換してるだけ (sjis にもしてるけど) "
 	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'sjis))
   (defvar my-filer "D:/bin/TablacusExplorer/TE32.exe")
   (add-hook 'dired-mode-hook
@@ -616,10 +616,10 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 			(start-process "explorer" "diredfiber" my-filer
 						   (unix-to-dos-filename (directory-file-name
 												  dired-directory)))
-		  ;; Meadow $BIUB0$N(B fiber.exe $B$@$H(B xlsx $B$N5/F0$K<:GT$7$F$k$h$&$J$N$G(B start.js $B$r<+:n(B
+		  ;; Meadow 付属の fiber.exe だと xlsx の起動に失敗してるようなので start.js を自作
 		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name "~/.emacs.d/bin/start.js")) (unix-to-dos-filename file)))))))
 
-;; $B%G%#%l%/%H%j0\F0$7$F$b%=!<%HJ}K!$rJQ2=$5$;$J$$(B
+;; ディレクトリ移動してもソート方法を変化させない
 (defadvice dired-advertised-find-file
   (around dired-sort activate)
   (let ((sw dired-actual-switches))
@@ -640,28 +640,28 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 		  (dired-sort-other dired-actual-switches)))
 	))
 
-;; Win$B$N%j%s%/$r;H$&(B
+;; Winのリンクを使う
 (when run-windows
   (require 'w32-symlinks))
 
-;; $B%U%!%$%kFbMF$rI=<((B
+;; ファイル内容を表示
 (require 'bf-mode)
-; $BJL%&%#%s%I%&$KI=<($9$k%5%$%:$N>e8B(B
+; 別ウィンドウに表示するサイズの上限
 (setq bf-mode-browsing-size 10)
-; $BJL%&%#%s%I%&$KI=<($7$J$$%U%!%$%k$N3HD%;R(B
+; 別ウィンドウに表示しないファイルの拡張子
 (setq bf-mode-except-ext '("\\.exe$" "\\.com$"))
-; $BMFNL$,$$$/$D$G$"$C$F$bI=<($7$FM_$7$$$b$N(B
+; 容量がいくつであっても表示して欲しいもの
 (setq bf-mode-force-browse-exts
       (append '("\\.texi$" "\\.el$")
               bf-mode-force-browse-exts))
-; html $B$O(B w3m $B$GI=<($9$k(B
+; html は w3m で表示する
 (setq bf-mode-html-with-w3m t)
-; $B05=L$5$l$?%U%!%$%k$rI=<((B
+; 圧縮されたファイルを表示
 (setq bf-mode-archive-list-verbose t)
-; $B%G%#%l%/%H%jFb$N%U%!%$%k0lMw$rI=<((B
+; ディレクトリ内のファイル一覧を表示
 (setq bf-mode-directory-list-verbose t)
 
-;; $B3HD%;RKh$K?'J,$1(B
+;; 拡張子毎に色分け
 (defvar *original-dired-font-lock-keywords* dired-font-lock-keywords)
 (defun dired-highlight-by-extensions (highlight-list)
   "highlight-list accept list of (regexp [regexp] ... face)."
@@ -673,32 +673,32 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 			lst))
 	(setq dired-font-lock-keywords
 		  (append *original-dired-font-lock-keywords* lst))))
-; $B?'$N@_Dj(B
+; 色の設定
 (dired-highlight-by-extensions
  '(("txt" font-lock-variable-name-face)
 	("exe" "bat" font-lock-type-face)
 	("lisp" "el" "pl" "c" "c++" "cpp" "h" "h++" "hpp" "cc" "sh" "vbs" font-lock-constant-face)))
 
 ;;;;-------------------------------------------------------------------
-;;;; kill-ring $B$NMzNr$r8+$k(B $B"*(B $B!z$J$s$+F0$+$J$/$J$C$?(B
+;;;; kill-ring の履歴を見る → ★なんか動かなくなった
 ;(require 'browse-kill-ring)
 ;;(global-set-key "\M-y" 'browse-kill-ring)
-;(browse-kill-ring-default-keybindings)	; yank $BD>8e$G$J$$$H$-$N(B \M-y $B$,(B browse-kill-ring $B$K$J$k(B
-;;; browse-kill-ring $B=*N;;~$K%P%C%U%!$r(B kill $B$9$k(B
+;(browse-kill-ring-default-keybindings)	; yank 直後でないときの \M-y が browse-kill-ring になる
+;;; browse-kill-ring 終了時にバッファを kill する
 ;(setq browse-kill-ring-quit-action 'kill-and-delete-window)
-;;; $BI=<(;z$N6h@Z$jJ8;z$r;XDj$9$k(B
+;;; 表示字の区切り文字を指定する
 ;(setq browse-kill-ring-separator "_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/")
-;;; $B8=:_A*BrCf$N(B kill-ring $B$r%O%$%i%$%H(B
+;;; 現在選択中の kill-ring をハイライト
 ;(setq browse-kill-ring-highlight-current-entry t)
 
 
 ;;;-------------------------------------------------------------------
-;;; ediff $B$N>.%&%#%s%I%&$r%_%K%P%C%U%!$K(B
+;;; ediff の小ウィンドウをミニバッファに
 (setq ediff-window-setup-function 'ediff-setup-windows-plain)
 
 ;;;-------------------------------------------------------------------
-;;; ediff $B$N?'@_Dj(B ($B%G%U%)%k%H$@$HJ8;z$HGX7J$,0l=o$N?'$K$J$j8+$($J$$%Q%?!<%s$,$"$k(B
-;;; $B;29M(B: http://www.gnu.org/software/emacs/manual/html_node/ediff/Highlighting-Difference-Regions.html
+;;; ediff の色設定 (デフォルトだと文字と背景が一緒の色になり見えないパターンがある
+;;; 参考: http://www.gnu.org/software/emacs/manual/html_node/ediff/Highlighting-Difference-Regions.html
 (when (not window-system)
 ;  (custom-set-faces '(ediff-current-diff-A ((t (:foreground "color-203" :background "color-120")))))
   (custom-set-faces '(ediff-current-diff-B ((t (:background "brightgreen")))))
@@ -710,45 +710,45 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
   (custom-set-faces '(ediff-even-diff-B ((t (:foreground "black" :background "color-245"))))))
 
 ;;;-------------------------------------------------------------------
-;;; moccur-grep $B$N%+%9%?%^%$%:(B
+;;; moccur-grep のカスタマイズ
 (require 'color-moccur)
-;; migemo $B$r;H$&(B $B"(8!:w8l$K!V(B.+$B!W$N$h$&$J@55,I=8=$,4^$^$l$k$H$-$O(B migemo $B;HMQ$7$J$$(B
+;; migemo を使う ※検索語に「.+」のような正規表現が含まれるときは migemo 使用しない
 (setq moccur-use-migemo t)
-;; space $B6h@Z$j$9$k$HJ#?t$NC18l$r8!:w(B
-;  $B$3$N$H$-!"8!:w8l$N(B 1 $B8lL\$K!V(B"$B!W!V(B!$B!W!V(B;$B!W$r;XDj$9$k$H$=$l$>$l!VJ8;zNs!W!V4X?tL>!W!V%3%a%s%H!W$N$_$rBP>]$K8!:w(B
-;  $B$?$@$7!";XDjC18l$N$&$A:G8e$NC18l$,>r7o$K0lCW$9$k$+$I$&$+$7$+8+$F$J$$$N$GCm0U!#(B
+;; space 区切りすると複数の単語を検索
+;  このとき、検索語の 1 語目に「"」「!」「;」を指定するとそれぞれ「文字列」「関数名」「コメント」のみを対象に検索
+;  ただし、指定単語のうち最後の単語が条件に一致するかどうかしか見てないので注意。
 (setq moccur-split-word t)
-;; $B8!:w=*N;8e!"3+$$$F$$$?%P%C%U%!$rJD$8$k(B
+;; 検索終了後、開いていたバッファを閉じる
 (setq kill-buffer-after-dired-do-moccur t)
-;; $B%+!<%=%kIU6a$NC18l$r%G%U%)%k%H$N8!:wJ8;zNs$H$9$k(B
+;; カーソル付近の単語をデフォルトの検索文字列とする
 (setq moccur-grep-default-word-near-point t)
-;; *.c $BJT=8Cf$N%G%U%)%k%H%U%!%$%k%^%9%/!'(B \.[HhCc]$
+;; *.c 編集中のデフォルトファイルマスク： \.[HhCc]$
 (add-hook
  'c-mode-common-hook
  (lambda ()
     (setq moccur-grep-default-mask "\\.\[HhCc\]$\\|\\.cpp$\\|\\.inc$\\|\\.asm$")))
 (autoload 'dmoccur "color-moccur" nil t)
-;; $B8!:wBP>]$K$7$J$$%U%!%$%k$rDI2C(B
+;; 検索対象にしないファイルを追加
 (setq dmoccur-exclusion-mask
 	  (append '("\\~$" "\\.svn\\/" "\\.keep$") dmoccur-exclusion-mask))
-;; moccur $B7k2L$rJT=8$7$F85%U%!%$%k$KH?1G(B
+;; moccur 結果を編集して元ファイルに反映
 ;(eval-after-load "color-moccur"
 ;  '(require 'moccur-edit))
-;;; moccur-edit $B$G!"3F%P%C%U%!$GJQ99$,E,MQ$5$l$?9T$K?'$,$D$/(B
-;;  $B?'$r>C$9$H$-$K$O(B moccur-edit-remove-overlays
-;;  $B<+F0$G>C$9$J$i(B moccur-edit-remove-overlays $B$r(B t
+;;; moccur-edit で、各バッファで変更が適用された行に色がつく
+;;  色を消すときには moccur-edit-remove-overlays
+;;  自動で消すなら moccur-edit-remove-overlays を t
 ;(setq moccur-edit-highlight-edited-text t)
 ;(setq moccur-edit-remove-overlays t)
 
 ;;;-------------------------------------------------------------------
-;;; shell $B$N@_Dj(B
-;; bash $B$r;H$&>l9g(B
+;;; shell の設定
+;; bash を使う場合
 (setq explicit-shell-file-name on-shell)
 (cond ((string= on-shell "bash")
 	   (setq shell-file-name "sh")
 	   (setq shell-command-switch "-c"))
 	  ((string= on-shell "tcsh")
-	   (setq shell-file-name "tcsh") ;csh $B$O;H$($J$$(B ($B%7%s%\%j%C%/%j%s%/$@$+$i!)(B)
+	   (setq shell-file-name "tcsh") ;csh は使えない (シンボリックリンクだから？)
 	   (setq shell-command-switch "-ic"))
 	  ((string= on-shell "cmdproxy.exe")
 	   (setq shell-file-name "cmd.exe /C")
@@ -757,19 +757,19 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 		  (lambda () (if (string= on-shell "cmdproxy.exe")
 						 (set-buffer-process-coding-system 'japanese-shift-jis-dos 'japanese-shift-jis-dos)
 					   (set-buffer-process-coding-system 'utf-8-unix 'utf-8-unix))))
-;; $BM>7W$J(B echo $B$r$J$/$9(B
+;; 余計な echo をなくす
 (add-hook 'comint-mode-hook (lambda () (setq comint-process-echoes t)))
 
-;; $B%(%9%1!<%W%7!<%1%s%9$r=hM}$9$k(B
+;; エスケープシーケンスを処理する
 (autoload 'ansi-color-for-comint-mode-on "ansi-color"
   "Set `ansi-color-for-comint-mode' to t." t)
 (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
 
-;; $B%Q%9%o!<%IF~NO$r1#$9(B ($B%W%m%s%W%H$,5,Dj%Q%?!<%s$K%^%C%A$7$?$i(B send-invisible $B$9$k;EAH$_$i$7$$(B)
+;; パスワード入力を隠す (プロンプトが規定パターンにマッチしたら send-invisible する仕組みらしい)
 (add-hook 'comint-output-filter-functions
 		  'comint-watch-for-password-prompt)
 (setq comint-password-prompt-regexp
-	  "\\(.*[Pp]assword\\|pass ?phrase\\|$B%Q%9%o!<%I(B\\):\\s *\\'")
+	  "\\(.*[Pp]assword\\|pass ?phrase\\|パスワード\\):\\s *\\'")
 
 ;;;-------------------------------------------------------------------
 ;;; shell-toggle
@@ -778,41 +778,41 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
   t)
 (autoload 'shell-toggle-cd "shell-toggle"
   "Pops up a shell-buffer and insert a \"cd \" command." t)
-(setq shell-toggle-launch-shell 'shell)	; ansi-shell $B$d(B eshell $B$G$J$/(B shell $B$r;H$&(B
+(setq shell-toggle-launch-shell 'shell)	; ansi-shell や eshell でなく shell を使う
 
 ;;;-------------------------------------------------------------------
-;;; cygwin-mount : Cygwin $B$N%Q%9$rM}2r$5$;$k(B
-;;; $B"($+$D$F$"$C$?5!G=3HD%HG$N(B cygwin-mount-mw32 $B$O%^%&%s%H>pJs$r%l%8%9%H%j$+$iFI$`$?$a(B
-;;; $B:G?7$N(B Cygwin ($B%l%8%9%H%j;H$o$:(B fstab $B;H$&(B) $B$G$O;H$($J$$(B
+;;; cygwin-mount : Cygwin のパスを理解させる
+;;; ※かつてあった機能拡張版の cygwin-mount-mw32 はマウント情報をレジストリから読むため
+;;; 最新の Cygwin (レジストリ使わず fstab 使う) では使えない
 (when (or on-cygwin on-msys)
   (require 'cygwin-mount)
   (cygwin-mount-activate)
-  ;; shell-toggle $B$N(B Cygwin $BMQ@_Dj(B
+  ;; shell-toggle の Cygwin 用設定
   (setq shell-toggle-cygwin-shell t))
 
 ;;;-------------------------------------------------------------------
-;;; grep-find $B%3%^%s%I$N%+%9%?%^%$%:(B
+;;; grep-find コマンドのカスタマイズ
 (require 'grep)
 (cond
  (on-windows-native
   (setq grep-find-command '("findstr /n /s /i /r /c:\"\" *.c" . 25)))
  (t
   (setq grep-find-command '("find . -type f -exec grep -nH  {} \\;" . 31))))
-;; $B8!:w%U%!%$%k$N%U%#%k%?%j%s%0(B
+;; 検索ファイルのフィルタリング
 (add-to-list 'grep-find-ignored-files '("*.~BASE~" . "*.svn-base") t)
 
 ;;;-------------------------------------------------------------------
-;;; ripgrep $B!D(B $B9bB.(B grep
-;;; Windows $B%P%$%J%j$N$?$a!"%Q%9$,(B "\" $B6h@Z$j$K$J$k$,$^$!$$$$$d!#(B
+;;; ripgrep … 高速 grep
+;;; Windows バイナリのため、パスが "\" 区切りになるがまぁいいや。
 (when (executable-find "rg")
   (require 'ripgrep)
-  ;; rg$B%P%$%J%j$N0LCV(B
+  ;; rgバイナリの位置
   (setq ripgrep-executable "rg")
-  ;; rg$B$KEO$9%*%W%7%g%s(B
+  ;; rgに渡すオプション
   (setq ripgrep-arguments '("-S")))
 
 ;;;-------------------------------------------------------------------
-;;; $B=i4|%U%l!<%`(B ($B%&%#%s%I%&$N0LCV$d%5%$%:!"%U%)%s%H@_Dj$J$I(B)
+;;; 初期フレーム (ウィンドウの位置やサイズ、フォント設定など)
 (when window-system
   (setq default-frame-alist
       (append (list
@@ -828,7 +828,7 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 			  default-frame-alist)))
 
 (when (and window-system run-windows)
-  ;; default $B%U%'%$%9$rJQ99$9$k$h$j!"(B fontset $B$r;H$&J}$,$$$$$i$7$$(B
+  ;; default フェイスを変更するより、 fontset を使う方がいいらしい
   ;; http://lioon.net/emacs-change-font-size-quickly
   (setq default-frame-alist
 		(append (list
@@ -840,34 +840,34 @@ type1 $B$O%;%Q%l!<%?$r>C5n$9$k$b$N!#(B")
 				initial-frame-alist))
   (set-fontset-font "fontset-standard"
 					'ascii
-					(font-spec :family "Migu 1M" :size 15) nil 'prepend) ; $B$3$3$G%5%$%:$r;XDj(B
+					(font-spec :family "Migu 1M" :size 15) nil 'prepend) ; ここでサイズを指定
   (set-fontset-font "fontset-standard"
 					'japanese-jisx0213.2004-1
-					(font-spec :family "Migu 1M") nil 'prepend) ; $B$3$C$A$G%5%$%:;XDj$9$k$H(B text-scale-mode $B$GJQ2=$7$J$$$i$7$$(B
-  ;; $B%X%k%W$N%-!<%P%$%s%I$@$1JQ$o$i$J$+$C$?$N$G@_Dj$7$F$*$/(B
+					(font-spec :family "Migu 1M") nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
+  ;; ヘルプのキーバインドだけ変わらなかったので設定しておく
   (set-face-font 'help-key-binding "Migu 1M"))
 
 ;;;-------------------------------------------------------------------
-;;; emacscrient $B$r5/F0(B
+;;; emacscrient を起動
 (when window-system
   (server-start))
 
 ;;;-------------------------------------------------------------------
-;;; woman : man $B$N7k2L$r8+$k(B
-;; $B%^%K%e%"%k3+$/$H$-!"?7$?$K(B frame $B$r:n@.$7$J$$(B
+;;; woman : man の結果を見る
+;; マニュアル開くとき、新たに frame を作成しない
 (setq woman-use-own-frame nil)
 
 ;;;-------------------------------------------------------------------
-;;; find-file $B$G%P%$%J%j3+$$$?$H$-$O(B hexel-find-file $B$K$9$k(B
+;;; find-file でバイナリ開いたときは hexel-find-file にする
 (defvar YAMA-file-not-binary-extensions '()
-  "$B%P%$%J%j$H$_$J$5$J$$%U%!%$%k$N3HD%;R$r(B
-  (\"txt\") $B$N$h$&$K%j%9%H$G;XDj$9$k(B
-  $B$?$@$7!$$9$Y$F>.J8;z$G;XDj$9$k(B")
+  "バイナリとみなさないファイルの拡張子を
+  (\"txt\") のようにリストで指定する
+  ただし，すべて小文字で指定する")
 
 (defvar YAMA-file-not-binary-files
   '("tags" "gsyms" "gpath" "grtags" "gsyms" "gtags")
-  "$B%P%$%J%j$H$_$J$5$J$$%U%!%$%kL>$r;XDj$9$k!%(B
-$B$?$@$7!$$9$Y$F>.J8;z$G;XDj$N$3$H(B")
+  "バイナリとみなさないファイル名を指定する．
+ただし，すべて小文字で指定のこと")
 
 (defun YAMA-file-binary-p (file &optional full)
   "Return t if FILE contains binary data.  If optional FULL is non-nil,
@@ -899,83 +899,83 @@ check for the whole contents of FILE, otherwise check for the first
 (defadvice find-file (around YAMA-find-file (file &optional wild))
   (if (and
 	   (condition-case nil (YAMA-file-binary-p file) (error))
-	   (y-or-n-p "$B%P%$%J%j%G!<%?$H$7$FJT=8$7$^$9$+(B?"))
+	   (y-or-n-p "バイナリデータとして編集しますか?"))
 	  (hexl-find-file file)
 	ad-do-it))
 
 (ad-activate 'find-file)
 
 ;;;-------------------------------------------------------------------
-;;; *.bat, *.ini $BMQ$N%b!<%I(B
-;;  generic-x.el $B$,%b!<%IDj5A!"(Bgeneric.el $B$,?'IU$1$J$I$r9T$C$F$$$k(B
-;;  $B",%b!<%I:n@.;~$N;29M$K(B
+;;; *.bat, *.ini 用のモード
+;;  generic-x.el がモード定義、generic.el が色付けなどを行っている
+;;  ↑モード作成時の参考に
 (require 'generic-x)
 (setq auto-mode-alist (append (list
                                '("\\.bat$" . bat-generic-mode)
                                '("\\.ini$" . ini-generic-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
-;;; VB.NET $B$d(B $B$=$NB>(B VB $B4XO"$N%U%!%$%k$rJT=8$9$k%b!<%I(B
+;;; VB.NET や その他 VB 関連のファイルを編集するモード
 (autoload 'vbnet-mode "vbnet-mode" "Mode for editing VB.NET code." t)
 (setq auto-mode-alist (append '(("\\.\\(frm\\|bas\\|cls\\|vb\\|vba\\|vbs\\)$" .
                               vbnet-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
-;;; auto-fill-mode $B$N@_Dj(B
+;;; auto-fill-mode の設定
 ;;------------------------------------------------
-;; M-q $B$G@07A(B ($B1QJ8$N>l9g(B C-u M-q)
-;; $B2?9TL\$G@^$jJV$9$+$O(B fill-column $B$G7h$a$k(B ($B%b!<%IKh(B)
+;; M-q で整形 (英文の場合 C-u M-q)
+;; 何行目で折り返すかは fill-column で決める (モード毎)
 ;;------------------------------------------------
-;; $B6uGr9T0J30$KCJMn$N6h@Z$j$H$7$F07$&J8;z$rDI2C(B
-(setq paragraph-start '"^\\([ $B!!!Z!&!{!|!}"""#!~"!!c!T(B<\t\n\f]\\|(?[0-9a-zA-Z]+)\\)")
+;; 空白行以外に段落の区切りとして扱う文字を追加
+(setq paragraph-start '"^\\([ 　【・○●◎□■◇◆＜《<\t\n\f]\\|(?[0-9a-zA-Z]+)\\)")
 
 ;;;-------------------------------------------------------------------
-;;; $BF0E*N,8lE83+(B dabbrev (M-/) $B$N3HD%(B
-(load "dabbrev-ja")	;original $B$O6uGr$GC18l$r6hJL$9$k$N$GF|K\8l$H9g$o$J$$$N$GF3F~(B
-(require 'dabbrev-highlight)		   ;$B>e5-$GJd40$7$?C18l$K?'$r$D$1$k(B
+;;; 動的略語展開 dabbrev (M-/) の拡張
+(load "dabbrev-ja")	;original は空白で単語を区別するので日本語と合わないので導入
+(require 'dabbrev-highlight)		   ;上記で補完した単語に色をつける
 
 ;;;-------------------------------------------------------------------
-;;; Subversion $B%$%s%?!<%U%'!<%9(B
+;;; Subversion インターフェース
 (require 'psvn)
-;; $B9bB.2=(B
+;; 高速化
 (setq svn-status-verbose nil)
 (setq svn-status-hide-unmodified t)
-;; $B%m%0$K%U%!%$%kL>$r=P$5$J$$(B
+;; ログにファイル名を出さない
 (setq svn-status-default-log-arguments nil)
-;; $B%W%l%U%#%/%9$r(BC-x s$B$K$9$k(B
+;; プレフィクスをC-x sにする
 (global-set-key (kbd "C-x s") svn-global-keymap)
-;; $B%?!<%_%J%k>e$G$b%o!<%/%U%!%$%k$NJQ99M-L5$r%b!<%I%i%$%s>e$GI=<((B
+;; ターミナル上でもワークファイルの変更有無をモードライン上で表示
 (when (not window-system)
   (defun svn-status-state-mark-modeline-dot (color)
-	(propertize "$B!|(B"
+	(propertize "●"
 				'face (list :foreground color))))
 
 ;;;-------------------------------------------------------------------
-;;; git $B%$%s%?!<%U%'!<%9(B
+;;; git インターフェース
 ;(require 'magit)
 
 ;;;-------------------------------------------------------------------
-;;; what-char  C-x = (what-cursor-position) $B$O(B Emacs $BFbIt%3!<%I$7$+=P$5$J$$$N$GF3F~(B
+;;; what-char  C-x = (what-cursor-position) は Emacs 内部コードしか出さないので導入
 ;(load "what-char")
 
 ;;;-------------------------------------------------------------------
-;;; $BITMQ0U$K(B C-xC-n $B$r2!$7$F%+!<%=%k$r>e2<$5$;$?$H$-$N%+%i%`$r8GDj$K$7$J$$$h$&!"%3%^%s%I$rL58z$K$9$k(B
+;;; 不用意に C-xC-n を押してカーソルを上下させたときのカラムを固定にしないよう、コマンドを無効にする
 (put 'set-goal-column 'disabled t)
 
 ;;;-------------------------------------------------------------------
-;;; $B%b!<%I%i%$%s$KJT=8Cf$N4X?t$rI=<((B $B"(4X?t$N30$K=P$F$b>C$($M$'!D(B
+;;; モードラインに編集中の関数を表示 ※関数の外に出ても消えねぇ…
 (which-function-mode t)
 
 ;;;-------------------------------------------------------------------
-;;; all $B%P%C%U%!Fb$NC18l$r8!:w$7$FJT=8(B
+;;; all バッファ内の単語を検索して編集
 (autoload 'all "all" nil t)
 
 ;;;-------------------------------------------------------------------
-;;; bookmark $B$r;H$&(B
-(setq bookmark-save-flag 1)	; bookmark $B$r(B 1 $B2sJQ99$7$?$i(B .emacs.bmk $B$KJ]B8$9$k(B ($B%G%U%)%k%H$O(B emacs $B=*N;;~(B)
+;;; bookmark を使う
+(setq bookmark-save-flag 1)	; bookmark を 1 回変更したら .emacs.bmk に保存する (デフォルトは emacs 終了時)
 
 ;;;-------------------------------------------------------------------
-;;; $B%G%U%)%k%H$N(B perl-mode $B$G$O$J$/(B cperl-mode $B$r;H$&(B
+;;; デフォルトの perl-mode ではなく cperl-mode を使う
 (defalias 'perl-mode 'cperl-mode)
 (add-hook 'cperl-mode-hook
           (lambda ()
@@ -983,15 +983,15 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;;;----------------------------------------------------------------------
 ;; gtags
-;; $B"#%?%0%U%!%$%k$r:n$k(B
+;; ■タグファイルを作る
 ;;   % gtags -v
-;; $B"#A`:nJ}K!(B
-;;   M-t:$B4X?t$NDj5A85$X0\F0(B $B"(JQ?t$O0\F0$7$F$/$l$J$$2?8N(B!!
-;;   M-r:$B4X?t$r;2>H85$N0lMw$rI=<(!%(BRET $B$G;2>H85$X%8%c%s%W$G$-$k(B
-;;   M-s:$BJQ?t$NDj5A85$H;2>H85$N0lMw$rI=<(!%(BRET $B$G3:Ev2U=j$X%8%c%s%W$G$-$k!%(B
-;;   C-t:$BA0$N%P%C%U%!$XLa$k(B
+;; ■操作方法
+;;   M-t:関数の定義元へ移動 ※変数は移動してくれない何故!!
+;;   M-r:関数を参照元の一覧を表示．RET で参照元へジャンプできる
+;;   M-s:変数の定義元と参照元の一覧を表示．RET で該当箇所へジャンプできる．
+;;   C-t:前のバッファへ戻る
 (autoload 'gtags-mode "gtags" "" t)
-;; helm-gtags $B$r;H$&$N$G%-!<%P%$%s%I$OJQ$($J$$(B
+;; helm-gtags を使うのでキーバインドは変えない
 ;(setq gtags-mode-hook
 ;	  (lambda ()
 ;		 (local-set-key "\M-t" 'gtags-find-tag)
@@ -1003,51 +1003,51 @@ check for the whole contents of FILE, otherwise check for the first
 ;;;-------------------------------------------------------------------
 ;;; org-mode
 (require 'org)
-;; TODO $B$d%9%1%8%e!<%k4IM}$9$k%U%!%$%k(B
+;; TODO やスケジュール管理するファイル
 ;(when run-windows
-;  ;; org-agenda-directory $B$K@_Dj$7$?%G%#%l%/%H%j$K$"$k(B *.org $BA4$F$rBP>]$K$9$k(B
+;  ;; org-agenda-directory に設定したディレクトリにある *.org 全てを対象にする
 ;  (defconst org-agenda-directory "~/work/general/working-memo/")
 ;  (setq org-agenda-files (directory-files org-agenda-directory t "\.org$" t)))
-;; TODO $B"*(B DONE $B;~$K;~9o$rA^F~(B
+;; TODO → DONE 時に時刻を挿入
 (setq org-log-done 'time)
-;; .org $B$r(B org-mode $B$G3+$/(B ($B%G%U%)%k%H$G@_Dj$5$l$F$$$k(B)
+;; .org を org-mode で開く (デフォルトで設定されている)
 ;(add-to-list 'auto-mode-alist '("\\.org$" . org-mode))
-;; $B%-!<%P%$%s%I(B
+;; キーバインド
 (define-key global-map "\C-c\C-l" 'org-store-link)
 (define-key global-map "\C-c\C-a" 'org-agenda)
 
 ;;;-------------------------------------------------------------------
-;; recentf : $B;HMQ$7$?%U%!%$%k$N%j%9%H$rJ]B8(B ($B8e=R$N(B helm $B$G;H$&(B)
+;; recentf : 使用したファイルのリストを保存 (後述の helm で使う)
 (require 'recentf)
 (setq recentf-max-menu-items 30)
 (setq recentf-max-saved-items 100)
 (setq recentf-exclude '("\\.recentf" "\\.~BASE~$"))
-(run-at-time nil (* 5 60) 'recentf-save-list) ;5 $BJ,Kh$KJ]B8(B
-;; $B%G%#%l%/%H%j$b07$($k3HD%(B $B"*(B http://d.hatena.ne.jp/rubikitch/20091224/recentf
+(run-at-time nil (* 5 60) 'recentf-save-list) ;5 分毎に保存
+;; ディレクトリも扱える拡張 → http://d.hatena.ne.jp/rubikitch/20091224/recentf
 (require 'recentf-ext)
 
 ;;;-------------------------------------------------------------------
-;;; helm : $B8uJdA*Br%U%l!<%`%o!<%/!#(B anything $B$N(B fork $B$@$,$3$A$i$NJ}$,0lHL$i$7$$(B
-(setq dired-bind-jump nil) ;; SKK $B$H%-!<%P%$%s%I>WFM2sHr(B
+;;; helm : 候補選択フレームワーク。 anything の fork だがこちらの方が一般らしい
+(setq dired-bind-jump nil) ;; SKK とキーバインド衝突回避
 (require 'helm)
 (helm-mode 1)
 
-;; $B%_%K%P%C%U%!$G(B `kill-line' $B$rM-8z$K(B
+;; ミニバッファで `kill-line' を有効に
 (setq helm-delete-minibuffer-contents-from-point t)
   (defadvice helm-delete-minibuffer-contents (before helm-emulate-kill-line activate)
   "Emulate `kill-line' in helm minibuffer"
   (kill-new (buffer-substring (point) (field-end))))
 
-;; helm-find-file $B$G(B typo $B$7$FB8:_$7$J$$%U%!%$%kL>$rJd40$9$k$H?75,%P%C%U%!$K$J$k$N$r2sHr(B
+;; helm-find-file で typo して存在しないファイル名を補完すると新規バッファになるのを回避
 (defadvice helm-ff-kill-or-find-buffer-fname (around execute-only-if-exist activate)
   "Execute command only if CANDIDATE exists"
   (when (file-exists-p candidate)
 	ad-do-it))
-;; $B%_%K%P%C%U%!$N%-!<%P%$%s%IJQ99(B
-(define-key helm-map (kbd "\C-k") 'kill-line) ; $B%G%U%)%k%H$G(B C-k $B$,DY$5$l$F$7$^$&$?$aLa$9(B
-;; TAB $B$GJd40$9$k4{B8$NF0:n$K6aIU$1$k(B
-;; $B"((Bdefault $B$O(B helm-execute-persistent-action $B$,(B C-z $B5Z$S(B C-j $B$K!"(B helm-select-action $B$,(B TAB $B$K3d$jEv$F$i$l$F$$$k(B
-;;   C-j $B$O(B SKK $B$H$+$G;H$&$N$G<h$i$l$k$H:$$k(B
+;; ミニバッファのキーバインド変更
+(define-key helm-map (kbd "\C-k") 'kill-line) ; デフォルトで C-k が潰されてしまうため戻す
+;; TAB で補完する既存の動作に近付ける
+;; ※default は helm-execute-persistent-action が C-z 及び C-j に、 helm-select-action が TAB に割り当てられている
+;;   C-j は SKK とかで使うので取られると困る
 (define-key helm-read-file-map (kbd "TAB") 'helm-execute-persistent-action)
 (define-key helm-find-files-map (kbd "TAB") 'helm-execute-persistent-action)
 (define-key helm-map (kbd "TAB") 'helm-execute-persistent-action)
@@ -1057,14 +1057,14 @@ check for the whole contents of FILE, otherwise check for the first
 (define-key helm-read-file-map (kbd "C-j") nil)
 (define-key helm-find-files-map (kbd "C-j") nil)
 (define-key helm-map (kbd "C-j") nil)
-;; backspace $B2!2<8e!"(B C-g $B$7$J$$$H<!$NA`:n$K$$$1$J$$!#(B C-g $B$7$J$$$G%]%A%]%A$7$F$k$HA4%-!<$,8z$+$J$/$J$k!#(B
-;; $B"*3d$jEv$F$5$l$F$k4X?t$,%"%+%s5$$,$9$k$N$GIaDL$K$7$F$_$?!#IQEY$OMn$A$?$,$^$@H/@8$9$k$N$G40A4BP:v$G$O$J$$(B
+;; backspace 押下後、 C-g しないと次の操作にいけない。 C-g しないでポチポチしてると全キーが効かなくなる。
+;; →割り当てされてる関数がアカン気がするので普通にしてみた。頻度は落ちたがまだ発生するので完全対策ではない
 (define-key helm-read-file-map (kbd "DEL") 'delete-backward-char)
 (define-key helm-find-files-map (kbd "DEL") 'delete-backward-char)
 (define-key helm-map (kbd "DEL") 'delete-backward-char)
 ;; isearch
-;  (define-key isearch-mode-map (kbd "\M-o") 'helm-occur-from-isearch) ; isearch$B$+$i(Bhelm-occur$B$r5/F0(B
-;; helm $B8F$S=P$7(B
+;  (define-key isearch-mode-map (kbd "\M-o") 'helm-occur-from-isearch) ; isearchからhelm-occurを起動
+;; helm 呼び出し
 (define-key global-map (kbd "C-x C-f") 'helm-find-files)
 (define-key global-map (kbd "M-x") 'helm-M-x)
 (global-set-key (kbd "\C-xb") 'helm-mini)
@@ -1074,19 +1074,19 @@ check for the whole contents of FILE, otherwise check for the first
 (global-set-key (kbd "M-.") 'helm-etags-select)
 (global-set-key (kbd "M-y") 'helm-show-kill-ring)
 
-;; helm-buffers-list $B$G%Q%?!<%s$rF~NO$9$k$H%P%C%U%!L>$ND9$5$G%=!<%H$5$l$k$N$r2sHr(B
+;; helm-buffers-list でパターンを入力するとバッファ名の長さでソートされるのを回避
 (defadvice helm-buffers-sort-transformer (around ignore activate)
   (setq ad-return-value (ad-get-arg 0)))
 
-;; migemo $B$r;H$&(B ($B:G6a$NHG$G$O(B helm-migemo $B%Q%C%1!<%8$,ITMW$K$J$C$?(B)
-;; $B"((Bhelm-find-files $B$G$O%Q%9$N8e$m$K%9%Z!<%9$rF~$l$k$HM-8z$K$J$k(B
+;; migemo を使う (最近の版では helm-migemo パッケージが不要になった)
+;; ※helm-find-files ではパスの後ろにスペースを入れると有効になる
 (helm-migemo-mode 1)
 
-;; gtags $B$r;H$&(B (helm-gtags)
-;; M-t : $BDj5A85$X%8%c%s%W(B
-;; M-r : $B;2>H@h$X%8%c%s%W(B
-;; M-s : $B%7%s%\%k$N;2>H@h$X%8%c%s%W(B
-;; C-t : $B%8%c%s%WA0$N>l=j$KLa$k(B
+;; gtags を使う (helm-gtags)
+;; M-t : 定義元へジャンプ
+;; M-r : 参照先へジャンプ
+;; M-s : シンボルの参照先へジャンプ
+;; C-t : ジャンプ前の場所に戻る
 (require 'helm-gtags)
 (add-hook 'c-mode-common-hook 'helm-gtags-mode)
 ;; key bindings
@@ -1097,31 +1097,31 @@ check for the whole contents of FILE, otherwise check for the first
 			 (local-set-key (kbd "M-s") 'helm-gtags-find-symbol)
 			 (local-set-key (kbd "C-t") 'helm-gtags-pop-stack)))
 
-;; $B%P%C%U%!Fb$N%7%s%\%k$r(B helm $B$G9J$j9~$_!#(B
-;; $BA4%P%C%U%!$rBP>]$H$7$?$j!"9J$j9~$_7k2L$rJT=8$7$F85%P%C%U%!$KH?1G$5$;$?$j$b$G$-$k(B
-;; C-s $B$N8e(B M-i $B$G5/F0(B
+;; バッファ内のシンボルを helm で絞り込み。
+;; 全バッファを対象としたり、絞り込み結果を編集して元バッファに反映させたりもできる
+;; C-s の後 M-i で起動
 (require 'helm-swoop)
-;; iserach $BCf$K(B helm-swoop $B$K0\9T(B
+;; iserach 中に helm-swoop に移行
 (define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
-;; helm-swoop $B<B9TCf$K(B helm-multi-swoop-all $B$K0\9T(B
+;; helm-swoop 実行中に helm-multi-swoop-all に移行
 (define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
 
-;; helm-ag ($B9bB.8!:w(B ag $B$N%$%s%?!<%U%'!<%9!#(B ag $B0J30$K$b;H$($k(B)
-;; $B"((Bag, ripgrep $B$O$I$&$d$i(B UTF-8 $B$7$+BP1~$7$F$J$$$N$GCm0U(B
+;; helm-ag (高速検索 ag のインターフェース。 ag 以外にも使える)
+;; ※ag, ripgrep はどうやら UTF-8 しか対応してないので注意
 (require 'helm-ag)
 (if (executable-find "rg")
-	(setq helm-ag-base-command "rg -S --vimgrep --no-heading") ;$B8=>u$G$O(B ripgrep $B$,:GB.(B
-  (setq helm-ag-base-command "grep -rin"))					   ;$BIaDL$N(B grep $B$K$7$F$*$/(B
-;; $B8=:_$N%7%s%\%k$r%G%U%)%k%H$N%/%(%j$K$9$k(B
+	(setq helm-ag-base-command "rg -S --vimgrep --no-heading") ;現状では ripgrep が最速
+  (setq helm-ag-base-command "grep -rin"))					   ;普通の grep にしておく
+;; 現在のシンボルをデフォルトのクエリにする
 (setq helm-ag-insert-at-point 'symbol)
-;; grep $B$N=|30%U%!%$%k$d=|30%G%#%l%/%H%j$r;H$&(B
+;; grep の除外ファイルや除外ディレクトリを使う
 (setq helm-ag-use-grep-ignore-list t)
 
-;;; $B<+:n4X?t(B
+;;; 自作関数
 (load "oz")
 
 ;;;-------------------------------------------------------------------
-;;; $B%-!<%P%$%s%I@_Dj(B
+;;; キーバインド設定
 (global-set-key "\C-ca" 'oz-bg-alpha)
 (global-set-key "\C-cb" 'browse-url)
 (global-set-key "\C-cc" 'compile)
@@ -1138,84 +1138,84 @@ check for the whole contents of FILE, otherwise check for the first
   (global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease))
 
 ;;;-------------------------------------------------------------------
-;;; $B%b!<%I%i%$%s$+$i%^%$%J!<%b!<%II=<($r>C$9(B ($BD9$$$N$G!D(B)
-;;; $B"(B>$N@_Dj$,>e=q$-$9$k$_$?$$$J$N$G!":G8e$K<B9T$5$;$k$3$H(B
+;;; モードラインからマイナーモード表示を消す (長いので…)
+;;; ※他の設定が上書きするみたいなので、最後に実行させること
 (setq-default minor-mode-alist nil)
 
 ;;;-------------------------------------------------------------------
-;;; customize $B$G:n@.$5$l$?@_Dj$rFI$_9~$`(B
+;;; customize で作成された設定を読み込む
 (condition-case nil
 	(load custom-file)
   (error nil))
 
 ;;;-------------------------------------------------------------------
-;;; $B$=$NB>%a%bMs(B ($B$$$D$bK:$l$k$N$G$3$3$K=q$$$F$*$/(B)
-;$B"#%-!<%P%$%s%I(B
-;$B!|%+!<%=%k0\F0$J$I(B
-;  C-M-f, C-M-b: $B8=:_$N%$%s%G%s%H$G!"<0C10L$G0\F0(B
-;  C-M-n, C-M-p: $B3g8LC10L$G0\F0$9$k(B $B"(%+!<%=%k0LCV(B: next $B$O3g8L$N>e(B($BA0(B)$B!"(B prev $B;~$O3g8L$N<!(B
-;  C-M-u, C-M-d: $B%$%s%G%s%H$r(B 1 $B$D>e$,$k(B ($B2<$,$k(B)
-;  M-a, M-e    : $BJ8C10L$G0\F0(B ($BCJMnC10L(B?)
-;  C-M-a, C-M-e: $B4X?tC10L$G$N0\F0(B
-;$B!|A*Br(B ($B%j!<%8%g%s4X78(B)
-;  C-M-SPC     : $B%+!<%=%k0LCV$N<0$r%j!<%8%g%s$GA*Br(B
-;  C-M-k       : $B<0$r@Z$j<h$k(B
-;  C-M-h       : $B4X?tA4BN$r%j!<%8%g%s$GA*Br(B
-;  C-M-\       :$B%j!<%8%g%sFb$r:F%$%s%G%s%H(B
-;$B!|(Bnarrow
-;  C-u 3 C-x $ : 3 $BJ8;z0J>e;z2<$2$5$l$F$$$kItJ,$r8+$($J$/$9$k(B
-;  C-x $       : $B",$G8+$($J$/$7$F$$$?ItJ,$r8+$($k$h$&$K$9$k(B
-;  C-x nd      : $B%+!<%=%k0LCV$N4X?t$N$_I=<((B (narrow-to-defun)
-;  C-x nw      : $B",$G8+$($J$/$J$C$?ItJ,$rLa$7A4BNI=<($K$9$k(B (widen)
-;  TAB         : (org-mode) $B%+!<%=%k0LCV$KBP$7$F(B $B@^$j$?$?$_"*;R$NI=<("*%5%V%D%j!<I=<("*@^$j$?$?$_"*!D(B $B$N@Z$j49$((B
-;  S-TAB       : (org-mode) $B%P%C%U%!A4BN$KBP$7$F(B $B@^$j$?$?$_"*;R$NI=<("*%5%V%D%j!<I=<("*@^$j$?$?$_"*!D(B $B$N@Z$j49$((B
-;$B!|%V%C%/%^!<%/(B
-;  C-x r m RET : $BK,Ld@h$N%U%!%$%k$N%]%$%s%H0LCV$K%V%C%/%^!<%/$r@_Dj$9$k!#(B
-;  C-x r m bookmark RET : $B%]%$%s%H0LCV$K!"(Bbookmark$B$H$$$&L>A0$N%V%C%/%^!<%/$r@_Dj$9$k(B (bookmark-set)
-;  C-x r b bookmark RET : $BL>A0$,(Bbookmark$B$G$"$k%V%C%/%^!<%/$K0\F0$9$k(B (bookmark-jump)
-;  C-x r l     : $B$9$Y$F$N%V%C%/%^!<%/$r0lMwI=<($9$k(B (list-bookmarks)
-;  M-x bookmark-save    : $B8=:_$N$9$Y$F$N%V%C%/%^!<%/$NCM$r(B $B%G%U%)%k%H$N%V%C%/%^!<%/%U%!%$%k$KJ]B8$9$k!#(B
-;$B!|$=$NB>(B
-;  C-x =       : $B%+!<%=%k0LCV$NJ8;z%3!<%I$rI=<((B
-;  M-=         : $B%j!<%8%g%sFb$N9T?t$HJ8;z?t$rI=<((B
-;  M-x toggle-truncate-lines : $B%P%C%U%!$N@^$jJV$7%b!<%I$r@Z$j49$($k(B
+;;; その他メモ欄 (いつも忘れるのでここに書いておく)
+;■キーバインド
+;●カーソル移動など
+;  C-M-f, C-M-b: 現在のインデントで、式単位で移動
+;  C-M-n, C-M-p: 括弧単位で移動する ※カーソル位置: next は括弧の上(前)、 prev 時は括弧の次
+;  C-M-u, C-M-d: インデントを 1 つ上がる (下がる)
+;  M-a, M-e    : 文単位で移動 (段落単位?)
+;  C-M-a, C-M-e: 関数単位での移動
+;●選択 (リージョン関係)
+;  C-M-SPC     : カーソル位置の式をリージョンで選択
+;  C-M-k       : 式を切り取る
+;  C-M-h       : 関数全体をリージョンで選択
+;  C-M-\       :リージョン内を再インデント
+;●narrow
+;  C-u 3 C-x $ : 3 文字以上字下げされている部分を見えなくする
+;  C-x $       : ↑で見えなくしていた部分を見えるようにする
+;  C-x nd      : カーソル位置の関数のみ表示 (narrow-to-defun)
+;  C-x nw      : ↑で見えなくなった部分を戻し全体表示にする (widen)
+;  TAB         : (org-mode) カーソル位置に対して 折りたたみ→子の表示→サブツリー表示→折りたたみ→… の切り換え
+;  S-TAB       : (org-mode) バッファ全体に対して 折りたたみ→子の表示→サブツリー表示→折りたたみ→… の切り換え
+;●ブックマーク
+;  C-x r m RET : 訪問先のファイルのポイント位置にブックマークを設定する。
+;  C-x r m bookmark RET : ポイント位置に、bookmarkという名前のブックマークを設定する (bookmark-set)
+;  C-x r b bookmark RET : 名前がbookmarkであるブックマークに移動する (bookmark-jump)
+;  C-x r l     : すべてのブックマークを一覧表示する (list-bookmarks)
+;  M-x bookmark-save    : 現在のすべてのブックマークの値を デフォルトのブックマークファイルに保存する。
+;●その他
+;  C-x =       : カーソル位置の文字コードを表示
+;  M-=         : リージョン内の行数と文字数を表示
+;  M-x toggle-truncate-lines : バッファの折り返しモードを切り換える
 ;
-;$B"#1QJ8!&OBJ8$NI=<(>uBV$r3NG'$9$k(B
-;  $B2<5-(B lisp $B<0$r(B *scratch* $BEy$GI>2A$9$k!#(B
+;■英文・和文の表示状態を確認する
+;  下記 lisp 式を *scratch* 等で評価する。
 ;(let (list-faces-sample-text)
 ;  (setq list-faces-sample-text
-;        (format "$B4A;z$+$s$8(B $BJR2>L>(B%s abcdefghijklmnop ABCDEFGXYZ012345"
-;                (japanese-hankaku "$B%+%?%+%J(B")))
+;        (format "漢字かんじ 片仮名%s abcdefghijklmnop ABCDEFGXYZ012345"
+;                (japanese-hankaku "カタカナ")))
 ;  (list-faces-display))
 ;
-;$B"#6u9T$N:o=|(B
-;M-x flush-lines $B$G%+!<%=%k0LCV0J9_$N8!:w$K0lCW$7$?J8;z$r4^$`9T$r:o=|(B
-;M-x keep-lines $B$G%+!<%=%k0LCV0J9_$N8!:w$K0lCW$7$?J8;z$r4^$`9T0J30$r:o=|(B
-;$B"*(B $BNc$($P(B M-x flush-lines ^$ $B$G6u9T$N:o=|$K$J$k(B
+;■空行の削除
+;M-x flush-lines でカーソル位置以降の検索に一致した文字を含む行を削除
+;M-x keep-lines でカーソル位置以降の検索に一致した文字を含む行以外を削除
+;→ 例えば M-x flush-lines ^$ で空行の削除になる
 ;
-;$B"#(BTAGS $B4XO"(B $B!D(B $B%?%0%8%c%s%W$NB>$K$b0U30$HLrN)$D%3%^%s%I$,(B
-;M-. : $B%?%0%8%c%s%W(B
-;M-* : $B%?%0%8%c%s%W%P%C%/(B
-;C-u M-.   : $B$=$NB>$KF1L>Dj5A$,$"$l$P$=$3$X%8%c%s%W(B
-;C-u ? M-. : $BA0$NF1L>Dj5A$KLa$k(B
-;M-x visit-tags-table : TAGS $B%U%!%$%k$N@Z49(B
-;M-x list-tags        : $BI=<(Cf%U%!%$%k$N(B TAGS $B$KEPO?$5$l$?%7%s%\%k$r0lMwI=<($9$k(B
-;M-x tags-apropos     : TAGS $B$+$i@55,I=8=$K0lCW$9$k%7%s%\%k$r8!:w(B
-;M-x tags-reset-tags-tables : $B%?%0%U%!%$%k$N>pJs$r%j%;%C%H(B
-;M-TAB     : $B4X?t$NJd40(B ($B$?$@$7(B dabbrev $B$NJ}$,;H$$$d$9$$(B)
+;■TAGS 関連 … タグジャンプの他にも意外と役立つコマンドが
+;M-. : タグジャンプ
+;M-* : タグジャンプバック
+;C-u M-.   : その他に同名定義があればそこへジャンプ
+;C-u ? M-. : 前の同名定義に戻る
+;M-x visit-tags-table : TAGS ファイルの切換
+;M-x list-tags        : 表示中ファイルの TAGS に登録されたシンボルを一覧表示する
+;M-x tags-apropos     : TAGS から正規表現に一致するシンボルを検索
+;M-x tags-reset-tags-tables : タグファイルの情報をリセット
+;M-TAB     : 関数の補完 (ただし dabbrev の方が使いやすい)
 ;
-;$B"#(BGDB
-;C-x C-a C-b : $B%V%l!<%/%]%$%s%H@_Dj(B (C-x SPC $B$H$"$k$,!"(B Emacs 24.4 $B$+$i6k7AA*Br%b!<%I$N@Z49$KJQ99$5$l$?!)(B)
-;C-x C-a C-d : $B%V%l!<%/%]%$%s%H:o=|(B
-;C-x C-a C-t : $B0l;~E*$J%V%l!<%/%]%$%s%H@_Dj(B ($B%V%l!<%/$9$k$H>C$($k!)(B)
-;C-x C-a C-s : step $B<B9T(B ($B4X?tF~$k(B)
-;C-x C-a C-n : next ($B4X?tF~$i$J$$(B)
-;C-x C-a C-r : $B<!$N%V%l!<%/%]%$%s%H$^$G<B9T(B (c $B$HF1$8!)(B)
-;C-x C-a C-u : $B8=:_$N%+!<%=%k9T$^$G<B9T(B
+;■GDB
+;C-x C-a C-b : ブレークポイント設定 (C-x SPC とあるが、 Emacs 24.4 から矩形選択モードの切換に変更された？)
+;C-x C-a C-d : ブレークポイント削除
+;C-x C-a C-t : 一時的なブレークポイント設定 (ブレークすると消える？)
+;C-x C-a C-s : step 実行 (関数入る)
+;C-x C-a C-n : next (関数入らない)
+;C-x C-a C-r : 次のブレークポイントまで実行 (c と同じ？)
+;C-x C-a C-u : 現在のカーソル行まで実行
 ;
-;$B"#$=$NB>(B
-;$B!|2~9T%3!<%I$NA^F~!&8!:w!&CV49$J$I(B
-;  $B%3!<%I$rF~NO$9$k$H$-!"(B C-q <Enter> $B$G$O$J$/(B C-q C-j $B$r;H$&!#A0<T$N>l9g$O(B ^M(0x0D) $B$,A^F~$5$l$k$,<B:]$K2~9T$5$l$J$$(B
-;$B!|(B*scrach* $B%P%C%U%!Ey$G<0$dCM$rI>2A$7$?:]!"I=<($,ESCf$GES@Z$l$k>l9g$O2<5-$r(B nil $B$K$9$k(B
-;  eval-expression-print-level : $BI>2A$7$?7k2L$rI=<($9$k:]!">JN,$;$:$KI=<($9$k%j%9%H$N%M%9%H$N?<$5!#%G%U%)%k%H$O(B4
-;  eval-expression-print-length: $BI>2A$7$?7k2L$rI=<($9$k:]!">JN,$;$:$KI=<($9$k%j%9%H$NMWAG?t!#%G%U%)%k%H$O(B12
+;■その他
+;●改行コードの挿入・検索・置換など
+;  コードを入力するとき、 C-q <Enter> ではなく C-q C-j を使う。前者の場合は ^M(0x0D) が挿入されるが実際に改行されない
+;●*scrach* バッファ等で式や値を評価した際、表示が途中で途切れる場合は下記を nil にする
+;  eval-expression-print-level : 評価した結果を表示する際、省略せずに表示するリストのネストの深さ。デフォルトは4
+;  eval-expression-print-length: 評価した結果を表示する際、省略せずに表示するリストの要素数。デフォルトは12
