@@ -1106,16 +1106,14 @@ check for the whole contents of FILE, otherwise check for the first
 ;; helm-swoop 実行中に helm-multi-swoop-all に移行
 (define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
 
-;; helm-ag (高速検索 ag のインターフェース。 ag 以外にも使える)
-;; ※ag, ripgrep はどうやら UTF-8 しか対応してないので注意
-(require 'helm-ag)
-(if (executable-find "rg")
-	(setq helm-ag-base-command "rg -S --vimgrep --no-heading") ;現状では ripgrep が最速
-  (setq helm-ag-base-command "grep -rin"))					   ;普通の grep にしておく
-;; 現在のシンボルをデフォルトのクエリにする
-(setq helm-ag-insert-at-point 'symbol)
-;; grep の除外ファイルや除外ディレクトリを使う
-(setq helm-ag-use-grep-ignore-list t)
+;; helm で grep 結果を串刺し検索 (デフォルト機能)
+;; https://www.ncaq.net/2022/02/17/21/02/27/
+;; %s は rg の用法からパス、検索語、最後は不明w
+(unless helm-grep-ag-command
+  ;; rg か ag があれば専用の変数を設定してくれるので、ない時は grep を設定しておく
+  (setq helm-grep-ag-command "find %s -type f -exec grep -nH %s %s \{\} \\;"))
+;; デフォルトはファイル名だけなので、絶対パスで表示
+(setq helm-grep-file-path-style 'absolute)
 
 ;;; 自作関数
 (load "oz")
@@ -1126,7 +1124,7 @@ check for the whole contents of FILE, otherwise check for the first
 (global-set-key "\C-cb" 'browse-url)
 (global-set-key "\C-cc" 'compile)
 (global-set-key "\C-cd" 'shell-toggle-cd)
-(global-set-key "\C-cf" 'helm-do-ag)
+(global-set-key "\C-cf" 'helm-do-grep-ag)
 (global-set-key "\C-cl" 'se/make-summary-buffer)
 (global-set-key "\C-cm" 'moccur-grep-find)
 (global-set-key "\C-cs" 'shell-toggle)
