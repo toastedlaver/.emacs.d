@@ -9,7 +9,6 @@
 	   (or (equal system-type 'windows-nt)
 		   (equal system-type 'ms-dos)
 		   (equal system-type 'cygwin))))
-(defvar run-meadow (featurep 'meadow))
 ;; どの環境で動いているか (for Win)
 ;; 条件1: 環境変数 SHELL の値 (native 環境でも emacs が設定してくれるぽい)
 ;;   cmdproxy.exe → native
@@ -36,6 +35,11 @@
   (and run-windows
 	   (not on-windows-native)
 	   (not on-msys)))
+
+;;;-------------------------------------------------------------------
+;;; customize で挿入されるコードを別ファイルに移す
+;;; (init.el が途中でエラーしても有効になるよう先頭付近で宣言しておく
+(setq custom-file "~/.emacs.d/auto-custom.el")
 
 ;;;;-------------------------------------------------------------------
 ;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
@@ -840,11 +844,9 @@ type1 はセパレータを消去するもの。")
   (set-fontset-font "fontset-standard"
 					'japanese-jisx0213.2004-1
 					(font-spec :family "Migu 1M") nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
-  )
+  ;; ヘルプのキーバインドだけ変わらなかったので設定しておく
+  (set-face-font 'help-key-binding "Migu 1M"))
 
-(when run-meadow
-;; アクティブでないモードラインのフォント設定
-  (set-face-font 'mode-line-inactive "BDF M+"))
 ;;;-------------------------------------------------------------------
 ;;; emacscrient を起動
 (when window-system
@@ -1140,11 +1142,10 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; ※他の設定が上書きするみたいなので、最後に実行させること
 (setq-default minor-mode-alist nil)
 
-;;; custom-set-variables や custom-set-faces が init.el 末尾に自動挿入するので別ファイルに移す
-(setq custom-file "~/.emacs.d/auto-custom.el")
-;; 読み出し
+;;;-------------------------------------------------------------------
+;;; customize で作成された設定を読み込む
 (condition-case nil
-    (load custom-file)
+	(load custom-file)
   (error nil))
 
 ;;;-------------------------------------------------------------------
