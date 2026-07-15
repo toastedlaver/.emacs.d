@@ -41,13 +41,13 @@
 ;;; (init.el が途中でエラーしても有効になるよう先頭付近で宣言しておく
 (setq custom-file "~/.emacs.d/auto-custom.el")
 
-;;;;-------------------------------------------------------------------
-;;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
-;;;; M-x package-list-packages : パッケージ操作バッファを開く
-;;;; これよりも
-;;;; M-x package-refresh-contents : パッケージ情報を更新する
-;;;; M-x package-install <RET> パッケージ名 : パッケージをインストールする
-;;;; の方が手軽にできる
+;;;-------------------------------------------------------------------
+;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
+;;; M-x package-list-packages : パッケージ操作バッファを開く
+;;; これよりも
+;;; M-x package-refresh-contents : パッケージ情報を更新する
+;;; M-x package-install <RET> パッケージ名 : パッケージをインストールする
+;;; の方が手軽にできる
 (package-initialize)
 (setq package-gnupghome-dir nil)		;パスが入っているとrefreshやupgrade時にgnupgでエラーが出るので nil にしておく
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
@@ -232,8 +232,8 @@
 
 ;;;-------------------------------------------------------------------
 ;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
-;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
-;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
+;;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
+;;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
 (if run-windows
 	(setq migemo-command "~/AppData/Local/cmigemo/cmigemo.exe")
   (setq migemo-command "cmigemo"))
@@ -316,74 +316,6 @@
 	(skk-kakutei))
    (t
 	ad-do-it)))
-
-;;;-------------------------------------------------------------------
-;;; iswitchb
-(iswitchb-mode 1)
-
-;; カーソルキーや SPC でもバッファ切換
-(add-hook 'iswitchb-define-mode-map-hook
-		  'iswitchb-my-keys)
-(defun iswitchb-my-keys ()
-  "Add my keybindings for iswitchb."
-  (define-key iswitchb-mode-map [right] 'iswitchb-next-match)
-  (define-key iswitchb-mode-map [left] 'iswitchb-prev-match)
-  (define-key iswitchb-mode-map "\C-f" 'iswitchb-next-match)
-  (define-key iswitchb-mode-map " " 'iswitchb-next-match)
-  (define-key iswitchb-mode-map "\C-b" 'iswitchb-prev-match)
-  )
-
-;; 候補がなければ find-file になる。
-;; さらに C-u C-x b で通常の C-x b
-(defun iswitchb-possible-new-buffer (buf)
-  "Possibly create and visit a new buffer called BUF."
-  (interactive)
-  (message (format
-			"No buffer matching `%s', "
-			buf))
-  (sit-for 1)
-  (call-interactively 'find-file buf))
-
-(defun iswitchb-buffer (arg)
-  "Switch to another buffer.
-
-The buffer name is selected interactively by typing a substring.  The
-buffer is displayed according to `iswitchb-default-method' -- the
-default is to show it in the same window, unless it is already visible
-in another frame.
-For details of keybindings, do `\\[describe-function] iswitchb'."
-  (interactive "P")
-  (if arg
-	  (call-interactively 'switch-to-buffer)
-	(setq iswitchb-method iswitchb-default-method)
-	(iswitchb)))
-
-;; 選択中のバッファ内容を表示
-(defadvice iswitchb-exhibit
-  (after
-   iswitchb-exhibit-with-display-buffer
-   activate)
-  "選択している buffer を window に表示してみる。"
-  (when (and
-		 (eq iswitchb-method iswitchb-default-method)
-		 iswitchb-matches)
-	(select-window
-	 (get-buffer-window (cadr (buffer-list))))
-	(let ((iswitchb-method 'samewindow))
-	  (iswitchb-visit-buffer
-	   (get-buffer (car iswitchb-matches))))
-	(select-window (minibuffer-window))))
-
-;; migemo を使う
-(setq iswitchb-regexp t)
-(setq iswitchb-use-migemo-p t)
-(defadvice iswitchb-get-matched-buffers
-  (before iswitchb-use-migemo activate)
-  "iswitchb で migemo を使ってみる。"
-  (when iswitchb-use-migemo-p
-	(ad-set-arg
-	 0 (migemo-get-pattern
-		(ad-get-arg 0)))))
 
 ;;;-------------------------------------------------------------------
 ;;; スペースやTABに色
@@ -680,18 +612,9 @@ type1 はセパレータを消去するもの。")
 	("exe" "bat" font-lock-type-face)
 	("lisp" "el" "pl" "c" "c++" "cpp" "h" "h++" "hpp" "cc" "sh" "vbs" font-lock-constant-face)))
 
-;;;;-------------------------------------------------------------------
-;;;; kill-ring の履歴を見る → ★なんか動かなくなった
-;(require 'browse-kill-ring)
-;;(global-set-key "\M-y" 'browse-kill-ring)
-;(browse-kill-ring-default-keybindings)	; yank 直後でないときの \M-y が browse-kill-ring になる
-;;; browse-kill-ring 終了時にバッファを kill する
-;(setq browse-kill-ring-quit-action 'kill-and-delete-window)
-;;; 表示字の区切り文字を指定する
-;(setq browse-kill-ring-separator "_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/")
-;;; 現在選択中の kill-ring をハイライト
-;(setq browse-kill-ring-highlight-current-entry t)
-
+;; Win で lsの Lisp エミュレーションを使わない
+(when (and run-windows (or on-cygwin on-msys))
+  (setq ls-lisp-use-insert-directory-program t))
 
 ;;;-------------------------------------------------------------------
 ;;; ediff の小ウィンドウをミニバッファに
@@ -923,10 +846,8 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;;;-------------------------------------------------------------------
 ;;; auto-fill-mode の設定
-;;------------------------------------------------
-;; M-q で整形 (英文の場合 C-u M-q)
-;; 何行目で折り返すかは fill-column で決める (モード毎)
-;;------------------------------------------------
+;;; M-q で整形 (英文の場合 C-u M-q)
+;;; 何行目で折り返すかは fill-column で決める (モード毎)
 ;; 空白行以外に段落の区切りとして扱う文字を追加
 (setq paragraph-start '"^\\([ 　【・○●◎□■◇◆＜《<\t\n\f]\\|(?[0-9a-zA-Z]+)\\)")
 
@@ -952,14 +873,6 @@ check for the whole contents of FILE, otherwise check for the first
 				'face (list :foreground color))))
 
 ;;;-------------------------------------------------------------------
-;;; git インターフェース
-;(require 'magit)
-
-;;;-------------------------------------------------------------------
-;;; what-char  C-x = (what-cursor-position) は Emacs 内部コードしか出さないので導入
-;(load "what-char")
-
-;;;-------------------------------------------------------------------
 ;;; 不用意に C-xC-n を押してカーソルを上下させたときのカラムを固定にしないよう、コマンドを無効にする
 (put 'set-goal-column 'disabled t)
 
@@ -983,14 +896,14 @@ check for the whole contents of FILE, otherwise check for the first
 			 (cperl-set-style "C++")))
 
 ;;;----------------------------------------------------------------------
-;; gtags
-;; ■タグファイルを作る
-;;   % gtags -v
-;; ■操作方法
-;;   M-t:関数の定義元へ移動 ※変数は移動してくれない何故!!
-;;   M-r:関数を参照元の一覧を表示．RET で参照元へジャンプできる
-;;   M-s:変数の定義元と参照元の一覧を表示．RET で該当箇所へジャンプできる．
-;;   C-t:前のバッファへ戻る
+;;; gtags
+;;; ■タグファイルを作る
+;;;   % gtags -v
+;;; ■操作方法
+;;;   M-t:関数の定義元へ移動 ※変数は移動してくれない何故!!
+;;;   M-r:関数を参照元の一覧を表示．RET で参照元へジャンプできる
+;;;   M-s:変数の定義元と参照元の一覧を表示．RET で該当箇所へジャンプできる．
+;;;   C-t:前のバッファへ戻る
 (autoload 'gtags-mode "gtags" "" t)
 ;; helm-gtags を使うのでキーバインドは変えない
 ;(setq gtags-mode-hook
@@ -1031,7 +944,7 @@ check for the whole contents of FILE, otherwise check for the first
 (add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode)) ; Common Mark
 
 ;;;-------------------------------------------------------------------
-;; recentf : 使用したファイルのリストを保存 (後述の helm で使う)
+;;; recentf : 使用したファイルのリストを保存 (後述の helm で使う)
 (require 'recentf)
 (setq recentf-max-menu-items 30)
 (setq recentf-max-saved-items 100)
@@ -1077,7 +990,7 @@ check for the whole contents of FILE, otherwise check for the first
 (define-key helm-find-files-map (kbd "DEL") 'delete-backward-char)
 (define-key helm-map (kbd "DEL") 'delete-backward-char)
 ;; isearch
-;  (define-key isearch-mode-map (kbd "\M-o") 'helm-occur-from-isearch) ; isearchからhelm-occurを起動
+(define-key isearch-mode-map (kbd "\M-o") 'helm-occur-from-isearch) ; isearchからhelm-occurを起動
 ;; helm 呼び出し
 (define-key global-map (kbd "C-x C-f") 'helm-find-files)
 (define-key global-map (kbd "M-x") 'helm-M-x)
@@ -1130,8 +1043,8 @@ check for the whole contents of FILE, otherwise check for the first
 (setq helm-grep-file-path-style 'absolute)
 
 ;;;-------------------------------------------------------------------
-;; web-mode : html/Javascript/PHP等混在した時に色分けしたりインデント揃えたり…
-;; package-install で入れる
+;;; web-mode : html/Javascript/PHP等混在した時に色分けしたりインデント揃えたり…
+;;; package-install で入れる
 (require 'web-mode)
 (add-to-list 'auto-mode-alist '("\\.html\\'" . web-mode))
 
@@ -1195,7 +1108,7 @@ check for the whole contents of FILE, otherwise check for the first
 ;  C-x r l     : すべてのブックマークを一覧表示する (list-bookmarks)
 ;  M-x bookmark-save    : 現在のすべてのブックマークの値を デフォルトのブックマークファイルに保存する。
 ;●その他
-;  C-x =       : カーソル位置の文字コードを表示
+;  C-x =       : カーソル位置の文字コードを表示 (what-cursor-position)
 ;  M-=         : リージョン内の行数と文字数を表示
 ;  M-x toggle-truncate-lines : バッファの折り返しモードを切り換える
 ;
