@@ -49,6 +49,7 @@
 ;;;; M-x package-install <RET> パッケージ名 : パッケージをインストールする
 ;;;; の方が手軽にできる
 (package-initialize)
+(setq package-gnupghome-dir nil)		;パスが入っているとrefreshやupgrade時にgnupgでエラーが出るので nil にしておく
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
@@ -227,7 +228,7 @@
 			 (c-set-style "my-c-style")
 			 ))
 ;; .h は C++ モードで開く
-(add-to-list 'auto-mode-alist '("\\.h$" . c++-mode))
+(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 
 ;;;-------------------------------------------------------------------
 ;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
@@ -840,7 +841,7 @@ type1 はセパレータを消去するもの。")
 				initial-frame-alist))
   (set-fontset-font "fontset-standard"
 					'ascii
-					(font-spec :family "Migu 1M" :size 15) nil 'prepend) ; ここでサイズを指定
+					(font-spec :family "Migu 1M" :size 20) nil 'prepend) ; ここでサイズを指定
   (set-fontset-font "fontset-standard"
 					'japanese-jisx0213.2004-1
 					(font-spec :family "Migu 1M") nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
@@ -911,13 +912,13 @@ check for the whole contents of FILE, otherwise check for the first
 ;;  ↑モード作成時の参考に
 (require 'generic-x)
 (setq auto-mode-alist (append (list
-                               '("\\.bat$" . bat-generic-mode)
-                               '("\\.ini$" . ini-generic-mode)) auto-mode-alist))
+                               '("\\.bat\\'" . bat-generic-mode)
+                               '("\\.ini\\'" . ini-generic-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
 ;;; VB.NET や その他 VB 関連のファイルを編集するモード
 (autoload 'vbnet-mode "vbnet-mode" "Mode for editing VB.NET code." t)
-(setq auto-mode-alist (append '(("\\.\\(frm\\|bas\\|cls\\|vb\\|vba\\|vbs\\)$" .
+(setq auto-mode-alist (append '(("\\.\\(frm\\|bas\\|cls\\|vb\\|vba\\|vbs\\)\\'" .
                               vbnet-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
@@ -1011,10 +1012,23 @@ check for the whole contents of FILE, otherwise check for the first
 ;; TODO → DONE 時に時刻を挿入
 (setq org-log-done 'time)
 ;; .org を org-mode で開く (デフォルトで設定されている)
-;(add-to-list 'auto-mode-alist '("\\.org$" . org-mode))
+;(add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
 ;; キーバインド
 (define-key global-map "\C-c\C-l" 'org-store-link)
 (define-key global-map "\C-c\C-a" 'org-agenda)
+
+;;;-------------------------------------------------------------------
+;;; markdown-mode
+(autoload 'markdown-mode "markdown-mode"
+  "Major mode for editing Markdown files" t)
+(with-eval-after-load 'markdown-mode
+  (custom-set-variables
+   '(markdown-command '("pandoc" "--from=gfm" "--to=html5")) ;CSS埋め込みなどは後で
+   '(markdown-fontify-code-blocks-natively t) ;コードブロックを色付けする
+   '(markdown-indent-on-enter 'indent-and-new-item)) ;改行時に自動でアイテムを挿入
+  (set-face-attribute 'markdown-code-face nil :inherit 'default)) ;コードブロックでフォントを変えない
+(add-to-list 'auto-mode-alist '("\\.md\\'" . gfm-mode)) ; Github Flavored Markdown
+(add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode)) ; Common Mark
 
 ;;;-------------------------------------------------------------------
 ;; recentf : 使用したファイルのリストを保存 (後述の helm で使う)
@@ -1114,6 +1128,13 @@ check for the whole contents of FILE, otherwise check for the first
   (setq helm-grep-ag-command "find %s -type f -exec grep -nH %s %s \{\} \\;"))
 ;; デフォルトはファイル名だけなので、絶対パスで表示
 (setq helm-grep-file-path-style 'absolute)
+
+;;;-------------------------------------------------------------------
+;; web-mode : html/Javascript/PHP等混在した時に色分けしたりインデント揃えたり…
+;; package-install で入れる
+(require 'web-mode)
+(add-to-list 'auto-mode-alist '("\\.html\\'" . web-mode))
+
 
 ;;; 自作関数
 (load "oz")
