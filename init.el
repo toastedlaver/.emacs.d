@@ -17,13 +17,9 @@
 ;;   存在する → msys
 ;;   存在しない → native or cygwin
 (defvar on-shell
-  (or (and (getenv "SHELL")
-		   (file-name-nondirectory (getenv "SHELL")))
-	  "")) ;SHELL が定義されてない場合
-(if (string= on-shell "") (setq on-shell "cmdproxy.exe")) ;SHELL がない or ファイルじゃない場合は win-native 扱い
-;; ↑ここ修正が必要
-;; unix の場合でも、 shell が cmdproxy になってしまう
-;; on-shell の入れ方から修正した方が良い (getenv した値を入れてから nil や存在しない場合のケアする)
+  (let ((env-shell (getenv "SHELL")) (base-shell "bash"))
+	(or (and env-shell (file-name-nondirectory env-shell))
+		(if (executable-find base-shell) base-shell "cmdproxy.exe"))))
 (defvar on-windows-native
   (and run-windows
 	   (string= on-shell "cmdproxy.exe")))
@@ -35,6 +31,9 @@
   (and run-windows
 	   (not on-windows-native)
 	   (not on-msys)))
+;; ローカルパス定義
+(defconst my-lisp-dir "~/.emacs.d/lisp")
+(defconst my-bin "~/.emacs.d/bin")
 
 ;;;-------------------------------------------------------------------
 ;;; customize で挿入されるコードを別ファイルに移す
@@ -56,7 +55,6 @@
 
 ;;;-------------------------------------------------------------------
 ;;; load-path の設定
-(defconst my-lisp-dir "~/.emacs.d/lisp")
 (add-to-list 'load-path my-lisp-dir)
 ;; my-lisp-dir の下位ディレクトリを全て load-path に追加
 (require 'cl-lib)
@@ -70,7 +68,7 @@
 (setq exec-path
 	  (append
 	   ;;  独自のコマンドを入れた場合など
-	   exec-path (list "~/.emacs.d/bin")
+	   exec-path (list my-bin)
 	   ;; MinGw + MSYS を使う場合
 ;;	   exec-path (list "c:/Program Files/msys/1.0/local/bin" "c:/Program Files/MinGw/bin" "c:/Program Files/msys/1.0/bin")
 	   ))
@@ -234,9 +232,11 @@
 ;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
 ;;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
 ;;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
-(if run-windows
-	(setq migemo-command "~/AppData/Local/cmigemo/cmigemo.exe")
-  (setq migemo-command "cmigemo"))
+(setq migemo-command "cmigemo")
+(when (not (executable-find migemo-command))
+  (if run-windows
+	  (setq migemo-command (concat "~/AppData/Local/cmigemo/" migemo-command ".exe"))
+	(setq migemo-command (concat my-bin "/" migemo-command))))
 (setq migemo-options '("-q" "--emacs" "-i" "\a"))
 ;; migemo-dict のパス/文字コードを指定
 ;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
@@ -298,9 +298,9 @@
 
 ;; 丸数字を使う
 (defun skk-num-maru-suji (num)
-  (let ((s "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
-	(n (string-to-number num)))
-	(when (and (>= n 1) (<= n 20))
+  (let ((s "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿")
+		(n (string-to-number num)))
+	(when (and (>= n 1) (<= n 50))
 	  (let ((m (1- n)))
 		(substring s m (1+ m))))))
 (eval-after-load "skk-vars"
@@ -359,6 +359,8 @@
 (add-hook 'after-init-hook 'session-initialize)
 ;; 前回ファイルを閉じたときのカーソル位置に復帰 (設定しないとファイル保存時の位置になってしまう)
 (setq session-undo-check -1)
+;; 強制終了に備えて (idle 中の) 自動保存時に session も記録する
+(add-hook 'auto-save-hook 'session-save-session)
 
 ;;;-------------------------------------------------------------------
 ;;; ミニバッファの文字削除をブロック単位で
@@ -550,7 +552,7 @@ type1 はセパレータを消去するもの。")
 						   (unix-to-dos-filename (directory-file-name
 												  dired-directory)))
 		  ;; Meadow 付属の fiber.exe だと xlsx の起動に失敗してるようなので start.js を自作
-		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name "~/.emacs.d/bin/start.js")) (unix-to-dos-filename file)))))))
+		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name (concat my-bin "/" "start.js"))) (unix-to-dos-filename file)))))))
 
 ;; ディレクトリ移動してもソート方法を変化させない
 (defadvice dired-advertised-find-file
@@ -655,28 +657,17 @@ type1 はセパレータを消去するもの。")
 ;; 検索対象にしないファイルを追加
 (setq dmoccur-exclusion-mask
 	  (append '("\\~$" "\\.svn\\/" "\\.keep$") dmoccur-exclusion-mask))
-;; moccur 結果を編集して元ファイルに反映
-;(eval-after-load "color-moccur"
-;  '(require 'moccur-edit))
-;;; moccur-edit で、各バッファで変更が適用された行に色がつく
-;;  色を消すときには moccur-edit-remove-overlays
-;;  自動で消すなら moccur-edit-remove-overlays を t
-;(setq moccur-edit-highlight-edited-text t)
-;(setq moccur-edit-remove-overlays t)
 
 ;;;-------------------------------------------------------------------
 ;;; shell の設定
-;; bash を使う場合
 (setq explicit-shell-file-name on-shell)
-(cond ((string= on-shell "bash")
-	   (setq shell-file-name "sh")
-	   (setq shell-command-switch "-c"))
-	  ((string= on-shell "tcsh")
-	   (setq shell-file-name "tcsh") ;csh は使えない (シンボリックリンクだから？)
-	   (setq shell-command-switch "-ic"))
-	  ((string= on-shell "cmdproxy.exe")
-	   (setq shell-file-name "cmd.exe /C")
-	   (setq shell-command-switch "/K")))
+(cond
+ ((string= (file-name-sans-extension on-shell) "bash") ;"bash" の場合と "bash.exe" の場合がある
+  (setq shell-file-name "sh")
+  (setq shell-command-switch "-c"))
+ ((string= on-shell "cmdproxy.exe")
+  (setq shell-file-name "cmd.exe /C")
+  (setq shell-command-switch "/K")))
 (add-hook 'shell-mode-hook
 		  (lambda () (if (string= on-shell "cmdproxy.exe")
 						 (set-buffer-process-coding-system 'japanese-shift-jis-dos 'japanese-shift-jis-dos)
@@ -718,7 +709,7 @@ type1 はセパレータを消去するもの。")
 ;;; grep-find コマンドのカスタマイズ
 (require 'grep)
 (cond
- (on-windows-native
+ ((not (executable-find "grep"))
   (setq grep-find-command '("findstr /n /s /i /r /c:\"\" *.c" . 25)))
  (t
   (setq grep-find-command '("find . -type f -exec grep -nH  {} \\;" . 31))))
@@ -764,7 +755,7 @@ type1 はセパレータを消去するもの。")
 				initial-frame-alist))
   (set-fontset-font "fontset-standard"
 					'ascii
-					(font-spec :family "Migu 1M" :size 20) nil 'prepend) ; ここでサイズを指定
+					(font-spec :family "Migu 1M" :size 15) nil 'prepend) ; ここでサイズを指定
   (set-fontset-font "fontset-standard"
 					'japanese-jisx0213.2004-1
 					(font-spec :family "Migu 1M") nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
@@ -855,22 +846,6 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; 動的略語展開 dabbrev (M-/) の拡張
 (load "dabbrev-ja")	;original は空白で単語を区別するので日本語と合わないので導入
 (require 'dabbrev-highlight)		   ;上記で補完した単語に色をつける
-
-;;;-------------------------------------------------------------------
-;;; Subversion インターフェース
-(require 'psvn)
-;; 高速化
-(setq svn-status-verbose nil)
-(setq svn-status-hide-unmodified t)
-;; ログにファイル名を出さない
-(setq svn-status-default-log-arguments nil)
-;; プレフィクスをC-x sにする
-(global-set-key (kbd "C-x s") svn-global-keymap)
-;; ターミナル上でもワークファイルの変更有無をモードライン上で表示
-(when (not window-system)
-  (defun svn-status-state-mark-modeline-dot (color)
-	(propertize "●"
-				'face (list :foreground color))))
 
 ;;;-------------------------------------------------------------------
 ;;; 不用意に C-xC-n を押してカーソルを上下させたときのカラムを固定にしないよう、コマンドを無効にする
