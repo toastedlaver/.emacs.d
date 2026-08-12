@@ -9,7 +9,7 @@
 	   (or (equal system-type 'windows-nt)
 		   (equal system-type 'ms-dos)
 		   (equal system-type 'cygwin))))
-;; どの環境で動いているか (for Win)
+;; どの環境で動いているか
 ;; 条件1: 環境変数 SHELL の値 (native 環境でも emacs が設定してくれるぽい)
 ;;   cmdproxy.exe → native
 ;;   bash, tcsh など → cygwin or msys
@@ -31,6 +31,15 @@
   (and run-windows
 	   (not on-windows-native)
 	   (not on-msys)))
+(require 'battery)
+(defvar on-laptop
+  ;; 起動環境がノートPCかどうか判定 (by Gemini 3.6 Flash)
+  (and (boundp 'battery-status-function)
+       battery-status-function
+       (let ((info (funcall battery-status-function)))
+         ;; バッテリー情報が存在し、"N/A" などの未検出でなければノートPC
+         (and info (not (string= (cdr (assoc ?B info)) "N/A"))))))
+
 ;; ローカルパス定義
 (defconst my-lisp-dir "~/.emacs.d/lisp")
 (defconst my-bin "~/.emacs.d/bin")
@@ -739,12 +748,13 @@ type1 はセパレータを消去するもの。")
 			   '(top . 50)
 			   '(left . 50)
 			   '(width . 120)
-			   '(height . 50))
+			   `(height . ,(if on-laptop 40 50)))
 			  default-frame-alist)))
 
 (when (and window-system run-windows)
   ;; default フェイスを変更するより、 fontset を使う方がいいらしい
   ;; http://lioon.net/emacs-change-font-size-quickly
+  (defconst my-font-name "Migu 1M")
   (setq default-frame-alist
 		(append (list
 				 '(font . "fontset-standard"))
@@ -755,12 +765,12 @@ type1 はセパレータを消去するもの。")
 				initial-frame-alist))
   (set-fontset-font "fontset-standard"
 					'ascii
-					(font-spec :family "Migu 1M" :size 15) nil 'prepend) ; ここでサイズを指定
+					(font-spec :family my-font-name :size (if on-laptop 20 15)) nil 'prepend) ; ここでサイズを指定
   (set-fontset-font "fontset-standard"
 					'japanese-jisx0213.2004-1
-					(font-spec :family "Migu 1M") nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
+					(font-spec :family my-font-name) nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
   ;; ヘルプのキーバインドだけ変わらなかったので設定しておく
-  (set-face-font 'help-key-binding "Migu 1M"))
+  (set-face-font 'help-key-binding my-font-name))
 
 ;;;-------------------------------------------------------------------
 ;;; emacscrient を起動
