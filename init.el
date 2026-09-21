@@ -527,13 +527,13 @@ type1 はセパレータを消去するもの。")
   (if (eq major-mode 'dired-mode)
 	  (kill-buffer my-dired-before-buffer)))
 
-;; z で関連づけソフトを起動する。ディレクトリの場合はファイラが起動
-;; C-u z で今開いているディレクトリをファイラ/エクスプローラで開く
+;; z でファイルを開く。ファイルなら windows の関連づけに従ってソフトを起動し、ディレクトリの場合はファイラを起動
+;; C-u z でカレントディレクトリをファイラorエクスプローラで開く
 (when run-windows
   (defun unix-to-dos-filename (path)
 	"unix のパスを dos に変更する…て言ってるけど '/' を '\' に変換してるだけ (sjis にもしてるけど) "
 	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'sjis))
-  (defvar my-filer "D:/bin/TablacusExplorer/TE32.exe")
+  (defvar my-filer (concat (getenv "LOCALAPPDATA") "\\TablacusExplorer\\TE64.exe"))
   (add-hook 'dired-mode-hook
 			(lambda ()
 			  (define-key dired-mode-map
@@ -551,8 +551,9 @@ type1 はセパレータを消去するもの。")
 			(start-process "explorer" "diredfiber" my-filer
 						   (unix-to-dos-filename (directory-file-name
 												  dired-directory)))
-		  ;; Meadow 付属の fiber.exe だと xlsx の起動に失敗してるようなので start.js を自作
-		  (start-process "start" "start" "wscript.exe" (unix-to-dos-filename (expand-file-name (concat my-bin "/" "start.js"))) (unix-to-dos-filename file)))))))
+		  ;; 組込みの start コマンドでファイルを起動
+		  ;; cmd.exe の start コマンドは "" を扱えないため、空白を含んだパスを処理するため DOS 8.3 形式のパスに変換
+		  (start-process "dos-process" "dos-cmd" "cmd.exe" "/c" "start" (w32-short-file-name (unix-to-dos-filename file))))))))
 
 ;; ディレクトリ移動してもソート方法を変化させない
 (defadvice dired-advertised-find-file
