@@ -536,33 +536,31 @@ type1 はセパレータを消去するもの。")
   (if (eq major-mode 'dired-mode)
 	  (kill-buffer my-dired-before-buffer)))
 
-;; z でファイルを開く。ファイルなら windows の関連づけに従ってソフトを起動し、ディレクトリの場合はファイラを起動
-;; C-u z でカレントディレクトリをファイラorエクスプローラで開く
+;; z で選択したものを開く。ファイルなら windows の関連付けで、ディレクトリの場合は my-filer で開く
 (when run-windows
-  (defun unix-to-dos-filename (path)
-	"unix のパスを dos に変更する…て言ってるけど '/' を '\' に変換してるだけ (sjis にもしてるけど) "
-	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'sjis))
   (defvar my-filer (concat (getenv "LOCALAPPDATA") "\\TablacusExplorer\\TE64.exe"))
+  (defun unix-to-dos-path (path)
+	"unix のパスを dos に変更する。
+…とは言ってもやってることは簡単で、'/' を '\\' に変換してプロセス用に sjis にしてるだけ"
+	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'cp932))
   (add-hook 'dired-mode-hook
 			(lambda ()
-			  (define-key dired-mode-map
-				"z" 'dired-fiber-find)))
-  (defun dired-fiber-find (arg)
-	(interactive "P")
+			  (define-key dired-mode-map "z" 'dired-launch)))
+  (defun dired-launch ()
+	(interactive)
 	(let ((file (dired-get-filename)))
 	  (if (file-directory-p file)
-		  (if arg
-			  (start-process "explorer" "filer" my-filer
-							 (unix-to-dos-filename file))
-			(start-process "explorer" "diredfiber" my-filer
-						   (unix-to-dos-filename file)))
-		(if arg
-			(start-process "explorer" "diredfiber" my-filer
-						   (unix-to-dos-filename (directory-file-name
-												  dired-directory)))
-		  ;; 組込みの start コマンドでファイルを起動
-		  ;; cmd.exe の start コマンドは "" を扱えないため、空白を含んだパスを処理するため DOS 8.3 形式のパスに変換
-		  (start-process "dos-process" "dos-cmd" "cmd.exe" "/c" "start" (w32-short-file-name (unix-to-dos-filename file))))))))
+		  (start-process "my-filer" "filer" my-filer (unix-to-dos-path file))
+		;; windows 組込みの start コマンドでファイルを起動
+		;; cmd.exe の start コマンドは "" を扱えないため、空白を含んだパスを処理するため DOS 8.3 形式のパスに変換
+		(start-process "dos-process" "dos-cmd" "cmd.exe" "/c" "start" (unix-to-dos-path (w32-short-file-name file))))))
+  ;; E でカレントディレクトリをエクスプローラで開く
+  (add-hook 'dired-mode-hook
+			(lambda ()
+			  (define-key dired-mode-map "E" 'launch-explorer)))
+  (defun launch-explorer ()
+	(interactive)
+	(start-process "explorer" "diredfiber" "explorer.exe" (unix-to-dos-path (directory-file-name dired-directory)))))
 
 ;; ディレクトリ移動してもソート方法を変化させない
 (defadvice dired-advertised-find-file
@@ -624,8 +622,9 @@ type1 はセパレータを消去するもの。")
 	("exe" "bat" font-lock-type-face)
 	("lisp" "el" "pl" "c" "c++" "cpp" "h" "h++" "hpp" "cc" "sh" "vbs" font-lock-constant-face)))
 
-;; Win で lsの Lisp エミュレーションを使わない
-(when (and run-windows (or on-cygwin on-msys))
+;; Lisp での ls エミュレーションを使うかどうか (t: 使わない)
+;; Msys2 と Git Bash の ls では、何故か日本語を含むパスでエラーになるので nil のままにする
+(when (not run-windows)
   (setq ls-lisp-use-insert-directory-program t))
 
 ;;;-------------------------------------------------------------------
