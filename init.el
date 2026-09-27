@@ -911,6 +911,8 @@ check for the whole contents of FILE, otherwise check for the first
 (setq org-log-done 'time)
 ;; .org を org-mode で開く (デフォルトで設定されている)
 ;(add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
+;; imenu で表示する見出しの深さ
+(setq org-imenu-depth 3)
 ;; キーバインド
 (define-key global-map "\C-c\C-l" 'org-store-link)
 (define-key global-map "\C-c\C-a" 'org-agenda)
