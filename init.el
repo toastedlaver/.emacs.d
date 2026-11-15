@@ -536,19 +536,21 @@ type1 はセパレータを消去するもの。")
   (if (eq major-mode 'dired-mode)
 	  (kill-buffer my-dired-before-buffer)))
 
-;; z で選択したものを開く。ファイルなら windows の関連付けで、ディレクトリの場合は my-filer で開く
 (when run-windows
+  ;; z で選択したものを開く。
+  ;; ファイルなら windows の関連付けで、ディレクトリの場合は my-filer で開く。
+  ;; また引数付きならカレントディレクトリを my-filer で開く
   (defvar my-filer (concat (getenv "LOCALAPPDATA") "\\TablacusExplorer\\TE64.exe"))
   (defun unix-to-dos-path (path)
-	"unix のパスを dos に変更する。
-…とは言ってもやってることは簡単で、'/' を '\\' に変換してプロセス用に sjis にしてるだけ"
+	"dos プロセス用に unix のパスを dos に変更する。
+…とは言っても複雑なことはやっていない。単純に '/' を '\\' に変換して文字コードを sjis にしてるだけ"
 	(encode-coding-string (concat (mapcar (lambda (x) (if(= x ?/) ?\\ x)) (string-to-list path))) 'cp932))
   (add-hook 'dired-mode-hook
 			(lambda ()
 			  (define-key dired-mode-map "z" 'dired-launch)))
-  (defun dired-launch ()
-	(interactive)
-	(let ((file (dired-get-filename)))
+  (defun dired-launch (&optional arg)
+	(interactive "P")
+	(let ((file (if arg (directory-file-name dired-directory) (dired-get-filename))))
 	  (if (file-directory-p file)
 		  (start-process "my-filer" "filer" my-filer (unix-to-dos-path file))
 		;; windows 組込みの start コマンドでファイルを起動
