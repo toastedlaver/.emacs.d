@@ -1,4 +1,4 @@
-;;; -*- mode: emacs-lisp; coding: iso-2022-7bit -*-
+;;; -*- mode: emacs-lisp; coding: iso-2022-7bit; lexical-binding: t; -*-
 ;;; 自作関数
 
 (defun oz-trim-whitespace (cmd)

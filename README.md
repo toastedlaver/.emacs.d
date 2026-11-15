@@ -1,5 +1,4 @@
 # Emacs セットアップメモ
-<small>最終更新: 2026-07-10</small>
 
 新規に Emacs を自分の環境ファイルを使ってセットアップする機会があったので、その時のメモを備忘録として残しておく
 
@@ -25,30 +24,30 @@
 emacs 起動して、エラー出る箇所を見ながら下記をインストールしていく
 
 #### `package-install` で導入
-| パッケージ   | 概要                                                         | 補足                                                                       |
-|--------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
-| migemo       | ローマ字日本語検索                                           |                                                                            |
-| ddskk        | 日本語入力                                                   |                                                                            |
-| bf-mode      | dired でファイルの中身を表示                                 |                                                                            |
-| color-moccur | 検索                                                         | grep/ripgrep などが使えない環境 (Windows native とか) のため               |
-| recentf-ext  | recentf でディレクトリも保存                                 | helm を動かすために必要                                                    |
-| helm 本体    | 検索                                                         | `(require 'helm-config)` ではなく `(require 'helm)` になったようだ |
-| helm-gtags   |                                                              |                                                                            |
-| helm-swoop   | 検索画面を編集して元ファイルに反映                           |                                                                            |
-| helm-ag      | ag で helm インターフェースを使う                            | 設定すれば grep/ripgrep も使える                                           |
-| shell-toggle |                                                              |                                                                            |
-| session      | kill-ring やミニバッファ入力、開いたファイルなどの履歴を保存 |                                                                            |
-| magit        | git I/F                                                      |                                                                            |
+| パッケージ     | 概要                                                         | 補足                                                               |
+|----------------|--------------------------------------------------------------|--------------------------------------------------------------------|
+| migemo         | ローマ字日本語検索                                           |                                                                    |
+| ddskk          | 日本語入力                                                   |                                                                    |
+| bf-mode        | dired でファイルの中身を表示                                 |                                                                    |
+| color-moccur   | 検索                                                         | grep/ripgrep などが使えない環境 (Windows native とか) のため       |
+| recentf-ext    | recentf でディレクトリも保存                                 | helm を動かすために必要                                            |
+| helm 本体      | 検索                                                         | `(require 'helm-config)` ではなく `(require 'helm)` になったようだ |
+| helm-gtags     |                                                              |                                                                    |
+| ~~helm-swoop~~ | 検索画面を編集して元ファイルに反映                           | いつの間にかMELPA等のリポジトリから無くなっていた                  |
+| helm-ag        | ag で helm インターフェースを使う                            | 設定すれば grep/ripgrep も使える                                   |
+| shell-toggle   |                                                              |                                                                    |
+| session        | kill-ring やミニバッファ入力、開いたファイルなどの履歴を保存 |                                                                    |
+| magit          | git I/F                                                      |                                                                    |
 
 #### パッケージ管理外
 | elisp                | 概要                                | DL                                                                             | メモ                                                                                               |
 |----------------------|-------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| sorter.el            | dired でファイルのソートを拡張      | オリジナルのファイルが所在不明                                                 |                                                                                                    |
+| ~~sorter.el~~        | dired でファイルのソートを拡張      | オリジナルのファイルが所在不明                                                 |                                                                                                    |
 | w32-symlinks.el      | dired で Win のショートカットを処理 | [EmacsWiki](https://www.emacswiki.org/emacs/w32-symlinks.el)                   |                                                                                                    |
 | dabbrev-highlight.el | dabbrev 展開時に色つけ              | [オリジナルの改良版](http://www.namazu.org/~tsuchiya/elisp/#dabbrev-highlight) |                                                                                                    |
 | dabbrev-ja.el        | dabbrev を日本語に対応              | [コード](http://www.namazu.org/~tsuchiya/elisp/dabbrev-ja.el)                  | [dabbrev-highlight のページ](http://www.namazu.org/~tsuchiya/elisp/#dabbrev-highlight) → 追加設定 |
 | cygwin-mount.el      | cygwin形式のパスを扱えるようにする  | [EmacsWiki](https://www.emacswiki.org/emacs/cygwin-mount.el)                   | Cygwin や MSYS2 等の一部コマンドは UNIX 形式パスしか処理できないので必要                           |
-| psvn                 | Subversion I/F                      | [EmacsWiki](https://www.emacswiki.org/emacs/psvn.el)                           | もうコードがメンテされてなさそうなので、 `package-install` できる dsvn に変えた方が良いかも    |
+| psvn                 | Subversion I/F                      | [EmacsWiki](https://www.emacswiki.org/emacs/psvn.el)                           | もうコードがメンテされてなさそうなので、 `package-install` できる dsvn に変えた方が良いかも        |
 
 
 #### その他

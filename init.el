@@ -1,4 +1,4 @@
-;;;; -*- mode: emacs-lisp; coding: utf-8 -*-
+;;;; -*- mode: emacs-lisp; coding: utf-8; lexical-binding: nil; -*-
 ;;;-------------------------------------------------------------------
 ;;; 環境を分けるための定義
 (defvar run-unix
@@ -35,10 +35,10 @@
 (defvar on-laptop
   ;; 起動環境がノートPCかどうか判定 (by Gemini 3.6 Flash)
   (and (boundp 'battery-status-function)
-       battery-status-function
-       (let ((info (funcall battery-status-function)))
-         ;; バッテリー情報が存在し、"N/A" などの未検出でなければノートPC
-         (and info (not (string= (cdr (assoc ?B info)) "N/A"))))))
+	   battery-status-function
+	   (let ((info (funcall battery-status-function)))
+		 ;; バッテリー情報が存在し、"N/A" などの未検出でなければノートPC
+		 (and info (not (string= (cdr (assoc ?B info)) "N/A"))))))
 
 ;; ローカルパス定義
 (defconst my-lisp-dir "~/.emacs.d/lisp")
@@ -318,16 +318,16 @@
 
 ;; org-mode の表編集中に Enter で確定できない問題を対応
 ;(require 'skk-vars)
-(defadvice org-return (around skk-in-org-table activate)
+(defun org-return--skk-in-org-table (orig-fun &rest args)
   "org-modeの表の中でもskkが使えるようにする."
-  (cond
-   ((and (org-at-table-p) (when (boundp 'skk-henkan-mode) (not (equal skk-henkan-mode nil))))
-	(skk-kakutei))
-   (t
-	ad-do-it)))
+  (if (and (org-at-table-p) (when (boundp 'skk-henkan-mode) (not (equal skk-henkan-mode nil))))
+	  (skk-kakutei)
+	(apply orig-fun args)))
+(advice-add 'org-return :around #'org-return--skk-in-org-table)
 
 ;;;-------------------------------------------------------------------
-;;; スペースやTABに色
+;;; font-lock-mode の設定
+;; スペースやTABに色
 ;;(defface my-face-r-1 '((t (:background "gray15"))) nil)
 (defface my-face-b-1 '((t (:background "gray"))) nil)
 (defface my-face-b-2 '((t (:background "SteelBlue"))) nil)
@@ -337,21 +337,22 @@
 (defvar my-face-b-2 'my-face-b-2)
 (defvar my-face-u-1 'my-face-u-1)
 
-(defadvice font-lock-mode (before my-font-lock-mode ())
+(defun font-lock-mode--colored-space-and-tab (&rest _args)
+  "スペースやTABに色をつける"
   (font-lock-add-keywords
    major-mode
    '(("\t" 0 my-face-u-1 append)
 	 ("　" 0 my-face-b-1 append)
 	 ("[ \t]+$" 0 my-face-b-2 append)
 	 )))
-(ad-enable-advice 'font-lock-mode 'before 'my-font-lock-mode)
-(ad-activate 'font-lock-mode)
+(advice-add 'font-lock-mode :before #'font-lock-mode--colored-space-and-tab)
+
 ;; settings for text-mode
 (add-hook 'text-mode-hook
-          (lambda ()
-             (progn
-               (font-lock-mode t)
-               (font-lock-fontify-buffer))))
+		  (lambda ()
+			(progn
+			  (font-lock-mode t)
+			  (font-lock-fontify-buffer))))
 
 ;;;-------------------------------------------------------------------
 ;;; session.el : kill-ring や ミニバッファで過去に開いたファイルなどの履歴を保存する
@@ -512,29 +513,12 @@ type1 はセパレータを消去するもの。")
 (require 'wdired)
 (define-key dired-mode-map "r" 'wdired-change-to-wdired-mode)
 ; 編集後、 SKK を OFF
-(defadvice wdired-finish-edit
-  (after skk-no-use activate)
+(defun wdired-finish-edit--after-skk-no-use (&rest _args)
   (skk-auto-fill-mode -1))
+(advice-add 'wdired-finish-edit :after #'wdired-finish-edit--after-skk-no-use)
 
 ;; ディレクトリを辿るとき、バッファを残さない
-(defvar my-dired-before-buffer nil)
-(defadvice dired-find-file
-	(before kill-dired-buffer activate)
-  (setq my-dired-before-buffer (current-buffer)))
-
-(defadvice dired-find-file
-	(after kill-dired-buffer-after activate)
-  (if (eq major-mode 'dired-mode)
-	  (kill-buffer my-dired-before-buffer)))
-
-(defadvice dired-up-directory
-	(before kill-up-dired-buffer activate)
-  (setq my-dired-before-buffer (current-buffer)))
-
-(defadvice dired-up-directory
-	(after kill-up-dired-buffer-after activate)
-  (if (eq major-mode 'dired-mode)
-	  (kill-buffer my-dired-before-buffer)))
+(setq dired-kill-when-opening-new-dired-buffer t)
 
 (when run-windows
   ;; z で選択したものを開く。
@@ -564,26 +548,16 @@ type1 はセパレータを消去するもの。")
 	(interactive)
 	(start-process "explorer" "diredfiber" "explorer.exe" (unix-to-dos-path (directory-file-name dired-directory)))))
 
-;; ディレクトリ移動してもソート方法を変化させない
-(defadvice dired-advertised-find-file
-  (around dired-sort activate)
-  (let ((sw dired-actual-switches))
-	ad-do-it
+;;; ディレクトリ移動してもソート方法を変化させない
+(defun preserve-sort-order (orig-fun &rest args)
+  (let ((prev-sw dired-actual-switches))
+	(apply orig-fun args)
 	(if (string= major-mode 'dired-mode)
 		(progn
-		  (setq dired-actual-switches sw)
-		  (dired-sort-other dired-actual-switches)))
-	))
-
-(defadvice dired-my-up-directory
-  (around dired-sort activate)
-  (let ((sw dired-actual-switches))
-	ad-do-it
-	(if (string= major-mode 'dired-mode)
-		(progn
-		  (setq dired-actual-switches sw)
-		  (dired-sort-other dired-actual-switches)))
-	))
+		  (setq dired-actual-switches prev-sw)
+		  (dired-sort-other dired-actual-switches)))))
+(advice-add 'dired-find-file :around 'preserve-sort-order)
+(advice-add 'dired-up-directory :around 'preserve-sort-order)
 
 ;; Winのリンクを使う
 (when run-windows
@@ -597,8 +571,8 @@ type1 はセパレータを消去するもの。")
 (setq bf-mode-except-ext '("\\.exe$" "\\.com$"))
 ; 容量がいくつであっても表示して欲しいもの
 (setq bf-mode-force-browse-exts
-      (append '("\\.texi$" "\\.el$")
-              bf-mode-force-browse-exts))
+	  (append '("\\.texi$" "\\.el$")
+			  bf-mode-force-browse-exts))
 ; html は w3m で表示する
 (setq bf-mode-html-with-w3m t)
 ; 圧縮されたファイルを表示
@@ -663,7 +637,7 @@ type1 はセパレータを消去するもの。")
 (add-hook
  'c-mode-common-hook
  (lambda ()
-    (setq moccur-grep-default-mask "\\.\[HhCc\]$\\|\\.cpp$\\|\\.inc$\\|\\.asm$")))
+   (setq moccur-grep-default-mask "\\.\[HhCc\]$\\|\\.cpp$\\|\\.inc$\\|\\.asm$")))
 (autoload 'dmoccur "color-moccur" nil t)
 ;; 検索対象にしないファイルを追加
 (setq dmoccur-exclusion-mask
@@ -741,7 +715,7 @@ type1 はセパレータを消去するもの。")
 ;;; 初期フレーム (ウィンドウの位置やサイズ、フォント設定など)
 (when window-system
   (setq default-frame-alist
-      (append (list
+		(append (list
 			   '(foreground-color . "black")
 			   '(background-color . "honeydew")
 			   '(border-color . "gray10")
@@ -754,24 +728,9 @@ type1 はセパレータを消去するもの。")
 			  default-frame-alist)))
 
 (when (and window-system run-windows)
-  ;; default フェイスを変更するより、 fontset を使う方がいいらしい
-  ;; http://lioon.net/emacs-change-font-size-quickly
   (defconst my-font-name "Migu 1M")
-  (setq default-frame-alist
-		(append (list
-				 '(font . "fontset-standard"))
-				default-frame-alist))
-  (setq initial-frame-alist
-		(append (list
-				 '(font . "fontset-standard"))
-				initial-frame-alist))
-  (set-fontset-font "fontset-standard"
-					'ascii
-					(font-spec :family my-font-name :size (if on-laptop 20 15)) nil 'prepend) ; ここでサイズを指定
-  (set-fontset-font "fontset-standard"
-					'japanese-jisx0213.2004-1
-					(font-spec :family my-font-name) nil 'prepend) ; こっちでサイズ指定すると text-scale-mode で変化しないらしい
-  ;; ヘルプのキーバインドだけ変わらなかったので設定しておく
+  (set-face-attribute 'default nil :family my-font-name :height (if on-laptop 120 105)) ; とりまorg-modeの表がズレない値に設定
+  ;; ヘルプのキーバインドだけ変わらなかったので個別に設定
   (set-face-font 'help-key-binding my-font-name))
 
 ;;;-------------------------------------------------------------------
@@ -823,14 +782,13 @@ check for the whole contents of FILE, otherwise check for the first
 			  nil t)
 			 t)))))
 
-(defadvice find-file (around YAMA-find-file (file &optional wild))
+(defun find-file--YAMA-find-file (orig-fun file &optional wildcards)
   (if (and
 	   (condition-case nil (YAMA-file-binary-p file) (error))
 	   (y-or-n-p "バイナリデータとして編集しますか?"))
 	  (hexl-find-file file)
-	ad-do-it))
-
-(ad-activate 'find-file)
+	(apply orig-fun file wildcards)))
+(advice-add 'find-file :around #'find-file--YAMA-find-file)
 
 ;;;-------------------------------------------------------------------
 ;;; *.bat, *.ini 用のモード
@@ -838,14 +796,14 @@ check for the whole contents of FILE, otherwise check for the first
 ;;  ↑モード作成時の参考に
 (require 'generic-x)
 (setq auto-mode-alist (append (list
-                               '("\\.bat\\'" . bat-generic-mode)
-                               '("\\.ini\\'" . ini-generic-mode)) auto-mode-alist))
+							   '("\\.bat\\'" . bat-generic-mode)
+							   '("\\.ini\\'" . ini-generic-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
 ;;; VB.NET や その他 VB 関連のファイルを編集するモード
 (autoload 'vbnet-mode "vbnet-mode" "Mode for editing VB.NET code." t)
 (setq auto-mode-alist (append '(("\\.\\(frm\\|bas\\|cls\\|vb\\|vba\\|vbs\\)\\'" .
-                              vbnet-mode)) auto-mode-alist))
+								 vbnet-mode)) auto-mode-alist))
 
 ;;;-------------------------------------------------------------------
 ;;; auto-fill-mode の設定
@@ -879,7 +837,7 @@ check for the whole contents of FILE, otherwise check for the first
 ;;; デフォルトの perl-mode ではなく cperl-mode を使う
 (defalias 'perl-mode 'cperl-mode)
 (add-hook 'cperl-mode-hook
-          (lambda ()
+		  (lambda ()
 			 (cperl-set-style "C++")))
 
 ;;;----------------------------------------------------------------------
@@ -931,6 +889,10 @@ check for the whole contents of FILE, otherwise check for the first
   (set-face-attribute 'markdown-code-face nil :inherit 'default)) ;コードブロックでフォントを変えない
 (add-to-list 'auto-mode-alist '("\\.md\\'" . gfm-mode)) ; Github Flavored Markdown
 (add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode)) ; Common Mark
+;; 大きな表が見難くなるので、 org-mode 同様折り返しを無効に
+(add-hook 'markdown-mode-hook
+		  (lambda ()
+			(setq truncate-lines t)))
 
 ;;;-------------------------------------------------------------------
 ;;; recentf : 使用したファイルのリストを保存 (後述の helm で使う)
@@ -950,15 +912,19 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;; ミニバッファで `kill-line' を有効に
 (setq helm-delete-minibuffer-contents-from-point t)
-  (defadvice helm-delete-minibuffer-contents (before helm-emulate-kill-line activate)
+(defun helm-delete-minibuffer-contents--emulate-kill-line (&rest _args)
   "Emulate `kill-line' in helm minibuffer"
   (kill-new (buffer-substring (point) (field-end))))
+(advice-add 'helm-delete-minibuffer-contents :before #'helm-delete-minibuffer-contents--emulate-kill-line)
 
 ;; helm-find-file で typo して存在しないファイル名を補完すると新規バッファになるのを回避
-(defadvice helm-ff-kill-or-find-buffer-fname (around execute-only-if-exist activate)
+;; ★いつの間にか、このやり方では回避できなくなってるっぽい…
+(defun helm-ff-kill-or-find-buffer-fname--execute-only-if-exist (orig-fun &rest args)
   "Execute command only if CANDIDATE exists"
-  (when (file-exists-p candidate)
-	ad-do-it))
+  (if (file-exists-p (car args))
+	  (apply orig-fun args)))
+(advice-add 'helm-ff-kill-or-find-buffer-fname :around #'helm-ff-kill-or-find-buffer-fname--execute-only-if-exist)
+
 ;; ミニバッファのキーバインド変更
 (define-key helm-map (kbd "\C-k") 'kill-line) ; デフォルトで C-k が潰されてしまうため戻す
 ;; TAB で補完する既存の動作に近付ける
@@ -973,13 +939,16 @@ check for the whole contents of FILE, otherwise check for the first
 (define-key helm-read-file-map (kbd "C-j") nil)
 (define-key helm-find-files-map (kbd "C-j") nil)
 (define-key helm-map (kbd "C-j") nil)
+
 ;; backspace 押下後、 C-g しないと次の操作にいけない。 C-g しないでポチポチしてると全キーが効かなくなる。
 ;; →割り当てされてる関数がアカン気がするので普通にしてみた。頻度は落ちたがまだ発生するので完全対策ではない
 (define-key helm-read-file-map (kbd "DEL") 'delete-backward-char)
 (define-key helm-find-files-map (kbd "DEL") 'delete-backward-char)
 (define-key helm-map (kbd "DEL") 'delete-backward-char)
+
 ;; isearch
 (define-key isearch-mode-map (kbd "\M-o") 'helm-occur-from-isearch) ; isearchからhelm-occurを起動
+
 ;; helm 呼び出し
 (define-key global-map (kbd "C-x C-f") 'helm-find-files)
 (define-key global-map (kbd "M-x") 'helm-M-x)
@@ -991,8 +960,10 @@ check for the whole contents of FILE, otherwise check for the first
 (global-set-key (kbd "M-y") 'helm-show-kill-ring)
 
 ;; helm-buffers-list でパターンを入力するとバッファ名の長さでソートされるのを回避
-(defadvice helm-buffers-sort-transformer (around ignore activate)
-  (setq ad-return-value (ad-get-arg 0)))
+(defun helm-buffers-sort-transformer--ignore (orig-fun &rest args)
+  (let* ((new-args (cons (car args) (cdr args))))
+	(apply orig-fun new-args)))
+(advice-add 'helm-buffers-sort-transformer :around #'helm-buffers-sort-transformer--ignore)
 
 ;; migemo を使う (最近の版では helm-migemo パッケージが不要になった)
 ;; ※helm-find-files ではパスの後ろにスペースを入れると有効になる
