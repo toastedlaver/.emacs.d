@@ -9,6 +9,9 @@
 	   (or (equal system-type 'windows-nt)
 		   (equal system-type 'ms-dos)
 		   (equal system-type 'cygwin))))
+(defvar run-android
+  (equal system-type 'android))
+
 ;; どの環境で動いているか
 ;; 条件1: 環境変数 SHELL の値 (native 環境でも emacs が設定してくれるぽい)
 ;;   cmdproxy.exe → native
@@ -152,8 +155,12 @@
 (setq line-move-visual nil)
 
 ;;;-------------------------------------------------------------------
-;;; ツールバー消す
-(tool-bar-mode 0)
+;;; ツールバーの設定
+;;; Android では modifier-bar-mode を使うため tool-bar-mode も ON のままにする
+(if (not run-android)
+	(tool-bar-mode 0)
+  (require 'oz-modifier-bar-mode)
+  (oz-modifier-bar-mode t))
 
 ;;;-------------------------------------------------------------------
 ;;; メニューバー消す (コンソール用)
@@ -238,90 +245,102 @@
 ;;;-------------------------------------------------------------------
 ;;; migemo → emacs24 では https://github.com/emacs-jp/migemo/blob/master/migemo.el を使うこと
 ;;; 基本設定 (cmigemo) ※バイナリは 64bit 用と 32bit 用があるので注意!!
-;;; ・Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
-(setq migemo-command "cmigemo")
-(when (not (executable-find migemo-command))
-  (if run-windows
-	  (setq migemo-command (concat "~/AppData/Local/cmigemo/" migemo-command ".exe"))
-	(setq migemo-command (concat my-bin "/" migemo-command))))
-(setq migemo-options '("-q" "--emacs" "-i" "\a"))
-;; migemo-dict のパス/文字コードを指定
-;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
-(if run-windows
-	(setq migemo-dictionary (expand-file-name "~/AppData/Local/cmigemo/dict/utf-8/migemo-dict"))
-  (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict")))
-(setq migemo-coding-system 'utf-8-unix)
-(setq migemo-user-dictionary nil)
-(setq migemo-regex-dictionary nil)
+(defvar using-migemo nil "migemo を使っているかどうか")
+(let ((using-migemo-command "cmigemo") (using-migemo-options '("-q" "--emacs" "-i" "\a")))
+  (setq migemo-command (executable-find using-migemo-command))
+  (unless migemo-command
+	;; パスが通っている箇所にインストールされていない場合は決め打ち
+	(setq migemo-command
+		  (if run-windows
+			  ;; Windows は他アプリとの連携を考えて cmigemo を AppData/Local に入れるようにする
+			  (concat "~/AppData/Local/cmigemo/" using-migemo-command ".exe")
+			;; root 権限のない Linux は my-bin の下にバイナリを入れている
+			(concat my-bin "/" using-migemo-command))))
+  (setq using-migemo (executable-find migemo-command))
+  (if (not using-migemo)
+	  (message (concat migemo-command " not found."))
+	;; その他設定
+	(setq migemo-options using-migemo-options)
+	;; migemo-dict のパス/文字コードを指定
+	;; ・もう UTF-8 以外の環境はないだろうから SJIS や EUC の設定は外す
+	(if run-windows
+		(setq migemo-dictionary (expand-file-name "~/AppData/Local/cmigemo/dict/utf-8/migemo-dict"))
+	  (setq migemo-dictionary (expand-file-name "~/.emacs.d/etc/migemo/utf-8/migemo-dict")))
+	(setq migemo-coding-system 'utf-8-unix)
+	(setq migemo-user-dictionary nil)
+	(setq migemo-regex-dictionary nil)
 
-;; キャッシュ機能を利用する
-(setq migemo-use-pattern-alist t)
-(setq migemo-use-frequent-pattern-alist t)
-(setq migemo-pattern-alist-length 1024)
+	;; キャッシュ機能を利用する
+	(setq migemo-use-pattern-alist t)
+	(setq migemo-use-frequent-pattern-alist t)
+	(setq migemo-pattern-alist-length 1024)
 
-(load-library "migemo")
-;; 起動時に初期化も行う
-(migemo-init)
+	(load-library "migemo")
+	;; 起動時に初期化も行う
+	(migemo-init)))
 
 ;;;-------------------------------------------------------------------
 ;;; SKK
 ;(require 'skk-autoloads)
 ;; 辞書の設定
 ;; Win は SKKFEP の辞書を使おうかと思ったが、文字コード等が変わっているので諦める
-(setq skk-large-jisyo "~/.emacs.d/etc/skk/SKK-JISYO.L")
-(setq skk-tut-file "~/.emacs.d/etc/skk/SKK.tut")
+(let ((using-skk-large-jisyo "~/.emacs.d/etc/skk/SKK-JISYO.L") (using-skk-tut-file "~/.emacs.d/etc/skk/SKK.tut"))
+  ;; L辞書があればセットアップする
+  (when (file-exists-p using-skk-large-jisyo) ; チュートリアルファイルは無くても問題ないのでチェックしない
+	(setq skk-large-jisyo using-skk-large-jisyo)
+	(setq skk-tut-file using-skk-tut-file)
 
-(global-set-key "\C-x\C-j" 'skk-mode)
-(global-set-key "\C-xj" 'skk-mode)
+	(global-set-key "\C-x\C-j" 'skk-mode)
+	(global-set-key "\C-xj" 'skk-mode)
 
-;; インクリメンタルサーチで日本語入力
-(add-hook 'isearch-mode-hook
-		  (function (lambda ()
-					  (and (boundp 'skk-mode) skk-mode
-						   (skk-isearch-mode-setup)))))
-(add-hook 'isearch-mode-end-hook
-		  (function (lambda ()
-					  (and (boundp 'skk-mode) skk-mode
-						   (skk-isearch-mode-cleanup)
-						   (skk-set-cursor-color-properly)))))
+	;; インクリメンタルサーチで日本語入力
+	(add-hook 'isearch-mode-hook
+			  (function (lambda ()
+						  (and (boundp 'skk-mode) skk-mode
+							   (skk-isearch-mode-setup)))))
+	(add-hook 'isearch-mode-end-hook
+			  (function (lambda ()
+						  (and (boundp 'skk-mode) skk-mode
+							   (skk-isearch-mode-cleanup)
+							   (skk-set-cursor-color-properly)))))
 
-;; 変換時，Enter は確定のみ (改行しない)
-(setq skk-egg-like-newline t)
+	;; 変換時，Enter は確定のみ (改行しない)
+	(setq skk-egg-like-newline t)
 
-;; メッセージは日本語で
-(setq skk-japanese-message-and-error t)
+	;; メッセージは日本語で
+	(setq skk-japanese-message-and-error t)
 
-;;"「"を入力したら"」"も自動で挿入
-(setq skk-auto-insert-paren t)
+	;;"「"を入力したら"」"も自動で挿入
+	(setq skk-auto-insert-paren t)
 
-;;漢字登録のミスをチェックする
-(setq skk-check-okurigana-on-touroku t)
+	;;漢字登録のミスをチェックする
+	(setq skk-check-okurigana-on-touroku t)
 
-;; 変換候補をインラインに表示
-(setq skk-show-inline t)
+	;; 変換候補をインラインに表示
+	(setq skk-show-inline t)
 
-;; isearch時にSKKをオフ
-(setq skk-isearch-start-mode 'latin)
+	;; isearch時にSKKをオフ
+	(setq skk-isearch-start-mode 'latin)
 
-;; 丸数字を使う
-(defun skk-num-maru-suji (num)
-  (let ((s "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿")
-		(n (string-to-number num)))
-	(when (and (>= n 1) (<= n 50))
-	  (let ((m (1- n)))
-		(substring s m (1+ m))))))
-(eval-after-load "skk-vars"
-  '(progn
-	 (add-to-list 'skk-num-type-alist '(6 . skk-num-maru-suji))))
+	;; 丸数字を使う
+	(defun skk-num-maru-suji (num)
+	  (let ((s "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿")
+			(n (string-to-number num)))
+		(when (and (>= n 1) (<= n 50))
+		  (let ((m (1- n)))
+			(substring s m (1+ m))))))
+	(eval-after-load "skk-vars"
+	  '(progn
+		 (add-to-list 'skk-num-type-alist '(6 . skk-num-maru-suji))))
 
-;; org-mode の表編集中に Enter で確定できない問題を対応
-;(require 'skk-vars)
-(defun org-return--skk-in-org-table (orig-fun &rest args)
-  "org-modeの表の中でもskkが使えるようにする."
-  (if (and (org-at-table-p) (when (boundp 'skk-henkan-mode) (not (equal skk-henkan-mode nil))))
-	  (skk-kakutei)
-	(apply orig-fun args)))
-(advice-add 'org-return :around #'org-return--skk-in-org-table)
+	;; org-mode の表編集中に Enter で確定できない問題を対応
+	;(require 'skk-vars)
+	(defun org-return--skk-in-org-table (orig-fun &rest args)
+	  "org-modeの表の中でもskkが使えるようにする."
+	  (if (and (org-at-table-p) (when (boundp 'skk-henkan-mode) (not (equal skk-henkan-mode nil))))
+		  (skk-kakutei)
+		(apply orig-fun args)))
+	(advice-add 'org-return :around #'org-return--skk-in-org-table)))
 
 ;;;-------------------------------------------------------------------
 ;;; font-lock-mode の設定
@@ -622,7 +641,8 @@ type1 はセパレータを消去するもの。")
 ;;; moccur-grep のカスタマイズ
 (require 'color-moccur)
 ;; migemo を使う ※検索語に「.+」のような正規表現が含まれるときは migemo 使用しない
-(setq moccur-use-migemo t)
+(when using-migemo
+  (setq moccur-use-migemo t))
 ;; space 区切りすると複数の単語を検索
 ;  このとき、検索語の 1 語目に「"」「!」「;」を指定するとそれぞれ「文字列」「関数名」「コメント」のみを対象に検索
 ;  ただし、指定単語のうち最後の単語が条件に一致するかどうかしか見てないので注意。
@@ -725,7 +745,7 @@ type1 はセパレータを消去するもの。")
 				 `(height . ,(if on-laptop 40 50)))
 				default-frame-alist)))
 
-(when (and window-system run-windows)
+(when (and window-system (or run-windows run-android))
   (defconst my-font-name "Migu 1M")
   (set-face-attribute 'default nil :family my-font-name :height (if on-laptop 120 105)) ; とりまorg-modeの表がズレない値に設定
   ;; ヘルプのキーバインドだけ変わらなかったので個別に設定
@@ -812,8 +832,9 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;;;-------------------------------------------------------------------
 ;;; 動的略語展開 dabbrev (M-/) の拡張
-(load "dabbrev-ja")	;original は空白で単語を区別するので日本語と合わないので導入
-(require 'dabbrev-highlight)		   ;上記で補完した単語に色をつける
+(unless run-android
+  (load "dabbrev-ja") ;original は空白で単語を区別するので日本語と合わないので導入
+  (require 'dabbrev-highlight))		   ;上記で補完した単語に色をつける
 
 ;;;-------------------------------------------------------------------
 ;;; 不用意に C-xC-n を押してカーソルを上下させたときのカラムを固定にしないよう、コマンドを無効にする
@@ -847,15 +868,17 @@ check for the whole contents of FILE, otherwise check for the first
 ;;;   M-r:関数を参照元の一覧を表示．RET で参照元へジャンプできる
 ;;;   M-s:変数の定義元と参照元の一覧を表示．RET で該当箇所へジャンプできる．
 ;;;   C-t:前のバッファへ戻る
-(autoload 'gtags-mode "gtags" "" t)
-;; helm-gtags を使うのでキーバインドは変えない
-;(setq gtags-mode-hook
-;	  (lambda ()
-;		 (local-set-key "\M-t" 'gtags-find-tag)
-;		 (local-set-key "\M-r" 'gtags-find-rtag)
-;		 (local-set-key "\M-s" 'gtags-find-symbol)
-;		 (local-set-key "\C-t" 'gtags-pop-stack)
-;		 ))
+(defvar using-gtags (executable-find "gtags") "gtags を使っているかどうか")
+(when using-gtags
+  (autoload 'gtags-mode "gtags" "" t)
+  ;; helm-gtags を使うのでキーバインドは変えない
+;  (setq gtags-mode-hook
+;		(lambda ()
+;		  (local-set-key "\M-t" 'gtags-find-tag)
+;		  (local-set-key "\M-r" 'gtags-find-rtag)
+;		  (local-set-key "\M-s" 'gtags-find-symbol)
+;		  (local-set-key "\C-t" 'gtags-pop-stack)))
+  )
 
 ;;;-------------------------------------------------------------------
 ;;; org-mode
@@ -965,22 +988,25 @@ check for the whole contents of FILE, otherwise check for the first
 
 ;; migemo を使う (最近の版では helm-migemo パッケージが不要になった)
 ;; ※helm-find-files ではパスの後ろにスペースを入れると有効になる
-(helm-migemo-mode 1)
+(when using-migemo
+  (helm-migemo-mode 1))
 
 ;; gtags を使う (helm-gtags)
 ;; M-t : 定義元へジャンプ
 ;; M-r : 参照先へジャンプ
 ;; M-s : シンボルの参照先へジャンプ
 ;; C-t : ジャンプ前の場所に戻る
-(require 'helm-gtags)
-(add-hook 'c-mode-common-hook 'helm-gtags-mode)
-;; key bindings
-(add-hook 'helm-gtags-mode-hook
-		  (lambda ()
-			 (local-set-key (kbd "M-t") 'helm-gtags-find-tag)
-			 (local-set-key (kbd "M-r") 'helm-gtags-find-rtag)
-			 (local-set-key (kbd "M-s") 'helm-gtags-find-symbol)
-			 (local-set-key (kbd "C-t") 'helm-gtags-pop-stack)))
+(when using-gtags
+  (unless run-android
+	(require 'helm-gtags)
+	(add-hook 'c-mode-common-hook 'helm-gtags-mode)
+	;; key bindings
+	(add-hook 'helm-gtags-mode-hook
+			  (lambda ()
+				(local-set-key (kbd "M-t") 'helm-gtags-find-tag)
+				(local-set-key (kbd "M-r") 'helm-gtags-find-rtag)
+				(local-set-key (kbd "M-s") 'helm-gtags-find-symbol)
+				(local-set-key (kbd "C-t") 'helm-gtags-pop-stack)))))
 
 ;;; バッファ内のシンボルを helm で絞り込み。
 ;;; 全バッファを対象としたり、絞り込み結果を編集して元バッファに反映させたりもできる
@@ -1008,6 +1034,11 @@ check for the whole contents of FILE, otherwise check for the first
 (require 'web-mode)
 (add-to-list 'auto-mode-alist '("\\.html\\'" . web-mode))
 
+;;-------------------------------------------------------------------
+;; Android 環境用の設定
+;; 読み取り専用のバッファで仮想キーボードが消えないようにする
+(when run-android
+  (setq touch-screen-display-keyboard t))
 
 ;;; 自作関数
 (load "oz")
