@@ -1,55 +1,55 @@
-;;; -*- mode: emacs-lisp; coding: iso-2022-7bit; lexical-binding: t; -*-
-;;; $B<+:n4X?t(B
+;;; -*- mode: emacs-lisp; coding: utf-8; lexical-binding: t; -*-
+;;; 自作関数
 
 (defun oz-trim-whitespace (cmd)
-  "$B%j!<%8%g%s$N6uGr!"(BTAB$B!"A43Q6uGr$rE}0l$9$k!#(B
-$B%j!<%8%g%s$,$J$$>l9g$O%P%C%U%!A4BN$rJQ99$9$k!#(B"
+  "リージョンの空白、TAB、全角空白を統一する。
+リージョンがない場合はバッファ全体を変更する。"
   (interactive "cSelect mode (t)abify, (u)ntabify, (a)ll white: ")
   (save-excursion
    (save-restriction
 	 (if (and transient-mark-mode (not mark-active))
 		 (mark-whole-buffer))
 	 (narrow-to-region (region-beginning) (region-end))
-	 ;; $B9TKv$N%9%Z!<%9$r<h$j=|$/(B
-	 (replace-regexp "\[$B!!(B \t\]+$" "" nil (region-beginning) (region-end))
+	 ;; 行末のスペースを取り除く
+	 (replace-regexp "\[　 \t\]+$" "" nil (region-beginning) (region-end))
 	 (if transient-mark-mode (mark-whole-buffer))
-	 ;; TAB $B$GE}0l(B    : $BA43Q6uGr$rH>3Q6uGr(B 2 $B$D$KJQ49$7$?8e(B tabify
-	 ;; $BH>3Q6uGr$GE}0l(B: $BA43Q6uGr$rH>3Q6uGr(B 2 $B$D$KJQ49$7$?8e(B untabify
-	 ;; $BA43Q6uGr$GE}0l(B: $BH>3Q6uGr$GE}0l$7$?8e!"H>3Q6uGr(B 2 $B$D$rA43Q6uGr$KJQ49(B
-	 (replace-regexp "$B!!(B" "  " nil (region-beginning) (region-end))
+	 ;; TAB で統一    : 全角空白を半角空白 2 つに変換した後 tabify
+	 ;; 半角空白で統一: 全角空白を半角空白 2 つに変換した後 untabify
+	 ;; 全角空白で統一: 半角空白で統一した後、半角空白 2 つを全角空白に変換
+	 (replace-regexp "　" "  " nil (region-beginning) (region-end))
 	 (if transient-mark-mode (mark-whole-buffer))
 	 (cond ((= cmd (string-to-char "t")) (tabify (region-beginning) (region-end)))
 		   ((= cmd (string-to-char "u")) (untabify (region-beginning) (region-end)))
 		   ((= cmd (string-to-char "a"))
 			(untabify (region-beginning) (region-end))
 			(if transient-mark-mode (mark-whole-buffer))
-			(replace-regexp "  " "$B!!(B" nil (region-beginning) (region-end)))))))
+			(replace-regexp "  " "　" nil (region-beginning) (region-end)))))))
 
 (defun oz-get-word-on-cur (&optional opt)
-  "$B%+!<%=%k0LCV$NC18l(B ($B%7%s%\%k(B) $B$r(B kill-ring $B$KDI2C$9$k(B"
+  "カーソル位置の単語 (シンボル) を kill-ring に追加する"
   (interactive "i")
   (kill-new (thing-at-point 'symbol)))
 
 (defun oz-bg-alpha (rate)
-  "$BGX7J$NF)2aN($rJQ$($k(B"
+  "背景の透過率を変える"
   (interactive "NAlpha rate 0(OFF)-100%%: ")
   (if (> rate 100)
 	  (setq rate 100))
   (if (< rate 0)
 	  (setq rate 0))
-  ;; $B@_Dj$9$k$N$OITF)2aN((B (100 $B$GF)2a$J$7(B)
+  ;; 設定するのは不透過率 (100 で透過なし)
   (set-frame-parameter nil 'alpha (- 100 rate)))
 
-;;; $B<+:n(B grep-find $B$N(B I/F
+;;; 自作 grep-find の I/F
 (defvar oz-grep-find-filemask-alist
   '((emacs-lisp-mode "*.el")
 	(c-mode "*.[ch]")
 	(c++-mode "*.[ch]*"))
-  "$B%a%8%c!<%b!<%IKh$K8!:w$9$k3HD%;R$N%G%U%)%k%HCM$r@_Dj(B")
+  "メジャーモード毎に検索する拡張子のデフォルト値を設定")
 (defun oz-grep-find-filemask(mode)
   (or (nth 1 (assq mode oz-grep-find-filemask-alist)) ""))
 (defun oz-grep-find (dir word &optional mask-mode)
-  "igrep $B$d(B moccur-grep $B$NMM$KBPOCE*$J(B I/F $B$G(B grep-find $B$9$k(B"
+  "igrep や moccur-grep の様に対話的な I/F で grep-find する"
   (interactive (list
 				(read-directory-name "Top directory : ")
 				(read-from-minibuffer "Words : " (thing-at-point 'symbol))
@@ -62,7 +62,7 @@
 					 ""))
 	(grep-find (format "find %s -type f %s -print0 | xargs -0 grep -Ein \"%s\" /dev/null" dir mask-str word))))
 
-;;; $B<+:n(B grep part2 (ripgrep & migemo)
+;;; 自作 grep part2 (ripgrep & migemo)
 (defun oz-mipgrep (word dir &optional mige-mode)
   (interactive
    (list (read-from-minibuffer "words:" (thing-at-point 'symbol))
@@ -79,9 +79,9 @@
 		 (ripgrep-regexp word-regex dir))))
 
 (defun oz-get-filename (&optional mode)
-  "$B%+%l%s%H%P%C%U%!$,K,Ld$7$F$$$k%U%!%$%kL>$r(B <$B%U%!%$%kL>(B>:<$B9T?t(B> $B$N%U%)!<%^%C%H$G(B
-kill-ring $B$KF~$l$k!#0z?tIU$-$J$i%U%k%Q%9$K$J$k!#(B
-$BK,Ld$7$F$$$k$N$,%U%!%$%k$G$J$1$l$P2?$b$7$J$$(B"
+  "カレントバッファが訪問しているファイル名を <ファイル名>:<行数> のフォーマットで
+kill-ring に入れる。引数付きならフルパスになる。
+訪問しているのがファイルでなければ何もしない"
   (interactive current-prefix-arg)
   (if buffer-file-name
 	  (kill-new (message

@@ -31,6 +31,7 @@
   (and run-windows
 	   (not on-windows-native)
 	   (not on-msys)))
+
 (require 'battery)
 (defvar on-laptop
   ;; 起動環境がノートPCかどうか判定 (by Gemini 3.6 Flash)
@@ -50,7 +51,7 @@
 (setq custom-file "~/.emacs.d/auto-custom.el")
 
 ;;;-------------------------------------------------------------------
-;;; パッケージ管理  ※どうやら社内環境では通信できないようだ…
+;;; パッケージ管理
 ;;; M-x package-list-packages : パッケージ操作バッファを開く
 ;;; これよりも
 ;;; M-x package-refresh-contents : パッケージ情報を更新する
@@ -88,9 +89,6 @@
 ;;;-------------------------------------------------------------------
 ;;; 日本語環境設定
 (set-language-environment "Japanese")
-;(if run-unix
-;	(prefer-coding-system 'euc-jp-unix)
-;  (prefer-coding-system 'utf-8-unix))
 (prefer-coding-system 'utf-8-unix)
 
 ;;;-------------------------------------------------------------------
@@ -600,7 +598,7 @@ type1 はセパレータを消去するもの。")
 
 ;; Lisp での ls エミュレーションを使うかどうか (t: 使わない)
 ;; Msys2 と Git Bash の ls では、何故か日本語を含むパスでエラーになるので nil のままにする
-(when (not run-windows)
+(unless run-windows
   (setq ls-lisp-use-insert-directory-program t))
 
 ;;;-------------------------------------------------------------------
@@ -697,7 +695,7 @@ type1 はセパレータを消去するもの。")
  ((not (executable-find "grep"))
   (setq grep-find-command '("findstr /n /s /i /r /c:\"\" *.c" . 25)))
  (t
-  (setq grep-find-command '("find . -type f -exec grep -nH  {} \\;" . 31))))
+  (setq grep-find-command '("find . -type f -exec grep -nH {} \\;" . 31))))
 ;; 検索ファイルのフィルタリング
 (add-to-list 'grep-find-ignored-files '("*.~BASE~" . "*.svn-base") t)
 
@@ -716,16 +714,16 @@ type1 はセパレータを消去するもの。")
 (when window-system
   (setq default-frame-alist
 		(append (list
-			   '(foreground-color . "black")
-			   '(background-color . "honeydew")
-			   '(border-color . "gray10")
-			   '(mouse-color . "white")
-			   '(cursor-color . "black")
-			   '(top . 50)
-			   '(left . 50)
-			   '(width . 120)
-			   `(height . ,(if on-laptop 40 50)))
-			  default-frame-alist)))
+				 '(foreground-color . "black")
+				 '(background-color . "honeydew")
+				 '(border-color . "gray10")
+				 '(mouse-color . "white")
+				 '(cursor-color . "black")
+				 '(top . 50)
+				 '(left . 50)
+				 '(width . 120)
+				 `(height . ,(if on-laptop 40 50)))
+				default-frame-alist)))
 
 (when (and window-system run-windows)
   (defconst my-font-name "Migu 1M")
@@ -921,8 +919,8 @@ check for the whole contents of FILE, otherwise check for the first
 ;; ★いつの間にか、このやり方では回避できなくなってるっぽい…
 (defun helm-ff-kill-or-find-buffer-fname--execute-only-if-exist (orig-fun &rest args)
   "Execute command only if CANDIDATE exists"
-  (if (file-exists-p (car args))
-	  (apply orig-fun args)))
+  (when (file-exists-p (car args))
+	(apply orig-fun args)))
 (advice-add 'helm-ff-kill-or-find-buffer-fname :around #'helm-ff-kill-or-find-buffer-fname--execute-only-if-exist)
 
 ;; ミニバッファのキーバインド変更
@@ -984,14 +982,16 @@ check for the whole contents of FILE, otherwise check for the first
 			 (local-set-key (kbd "M-s") 'helm-gtags-find-symbol)
 			 (local-set-key (kbd "C-t") 'helm-gtags-pop-stack)))
 
-;; バッファ内のシンボルを helm で絞り込み。
-;; 全バッファを対象としたり、絞り込み結果を編集して元バッファに反映させたりもできる
-;; C-s の後 M-i で起動
-(require 'helm-swoop)
-;; iserach 中に helm-swoop に移行
-(define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
-;; helm-swoop 実行中に helm-multi-swoop-all に移行
-(define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
+;;; バッファ内のシンボルを helm で絞り込み。
+;;; 全バッファを対象としたり、絞り込み結果を編集して元バッファに反映させたりもできる
+;;; ★メンテ終了して MELPA 等のリポジトリからも削除されたので無効とする。
+;;; まあ個人的には helm-occur (M-o) で充分
+;;; C-s の後 M-i で起動
+;(require 'helm-swoop)
+;;; iserach 中に helm-swoop に移行
+;(define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
+;;; helm-swoop 実行中に helm-multi-swoop-all に移行
+;(define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
 
 ;; helm で grep 結果を串刺し検索 (デフォルト機能)
 ;; https://www.ncaq.net/2022/02/17/21/02/27/
