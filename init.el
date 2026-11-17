@@ -45,7 +45,6 @@
 		 (and info (not (string= (cdr (assoc ?B info)) "N/A"))))))
 
 ;; ローカルパス定義
-(defconst my-lisp-dir "~/.emacs.d/lisp")
 (defconst my-bin "~/.emacs.d/bin")
 
 ;;;-------------------------------------------------------------------
@@ -65,16 +64,6 @@
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
-
-;;;-------------------------------------------------------------------
-;;; load-path の設定
-(add-to-list 'load-path my-lisp-dir)
-;; my-lisp-dir の下位ディレクトリを全て load-path に追加
-(require 'cl-lib)
-(cl-loop for f in (directory-files my-lisp-dir t)
-		 when (and (file-directory-p f)
-				   (not (member (file-name-nondirectory f) '("." ".."))))
-		 do (add-to-list 'load-path f))
 
 ;;;-------------------------------------------------------------------
 ;;; 外部コマンドのパス
